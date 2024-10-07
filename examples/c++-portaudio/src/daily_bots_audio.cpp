@@ -11,6 +11,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <mutex>
 
 static int audio_input_callback(
         const void* input_buffer,
@@ -27,6 +28,112 @@ static int audio_input_callback(
     return paContinue;
 }
 
+class AudioOutput {
+    AudioOutput(const AudioOutput&) = delete;
+    AudioOutput& operator=(const AudioOutput&) = delete;
+
+public:
+    explicit AudioOutput(const uint32_t sample_rate) :
+            _output_stream(nullptr),
+            _buffer_mutex(),
+            _playing(false),
+            _buffer() {
+
+         PaError err = Pa_OpenDefaultStream(
+                &_output_stream,
+                0,
+                1,
+                paInt16,
+                sample_rate,
+                paFramesPerBufferUnspecified,
+                &pa_audio_output_callback,
+                this
+        );
+
+        if (err != paNoError) {
+            throw std::runtime_error(
+                    "PortAudio error: " + std::string(Pa_GetErrorText(err))
+            );
+        }
+
+        err = Pa_StartStream(_output_stream);
+
+        if (err != paNoError) {
+            Pa_CloseStream(_output_stream);
+            throw std::runtime_error(
+                    "PortAudio error: " + std::string(Pa_GetErrorText(err))
+            );
+        }
+    }
+
+    void write_data(const int16_t* frames, const size_t num_frames) {
+        std::lock_guard<std::mutex> lock(_buffer_mutex);
+        _buffer.insert(_buffer.end(), frames, frames + num_frames);
+    }
+
+    ~AudioOutput() {
+        Pa_StopStream(_output_stream);
+        Pa_CloseStream(_output_stream);
+    }
+
+private:
+    static int pa_audio_output_callback(
+        const void* input_buffer,
+        void* output_buffer,
+        unsigned long num_frames,
+        const PaStreamCallbackTimeInfo* time_info,
+        PaStreamCallbackFlags flags,
+        void* user_data
+    ) {
+        return static_cast<AudioOutput*>(user_data)->audio_output_callback(
+            output_buffer,
+            num_frames
+        );
+    }
+
+    int audio_output_callback(
+        void* output_buffer,
+        unsigned long num_frames
+    ) {
+        std::lock_guard<std::mutex> lock(_buffer_mutex);
+
+        int16_t* output_buffer_i16 = static_cast<int16_t*>(output_buffer);
+
+        if (!_playing) {
+            const size_t MIN_STARTING_FRAMES = std::max<size_t>(num_frames * 2, 240);
+
+            if (_buffer.size() >= MIN_STARTING_FRAMES) {
+                std::cout << "Starting playing" << std::endl;
+                _playing = true;
+            } else {
+                memset(output_buffer_i16, 0, num_frames * 2);
+                return paContinue;
+            }
+        }
+
+        const size_t frames_remaining = _buffer.size();
+
+        const size_t frames_to_copy = std::min<size_t>(num_frames, frames_remaining);
+
+        std::copy(_buffer.begin(), _buffer.begin() + frames_to_copy, output_buffer_i16);
+        _buffer.erase(_buffer.begin(), _buffer.begin() + frames_to_copy);
+
+        if (frames_to_copy < num_frames) {
+            std::cout << "End of buffered data, stopping" << std::endl;
+            memset(output_buffer_i16 + frames_to_copy, 0, (num_frames - frames_to_copy) * 2);
+            _playing = false;
+        }
+
+        return paContinue;
+    }
+
+private:
+    PaStream* _output_stream;
+    std::mutex _buffer_mutex;
+    bool _playing;
+    std::deque<int16_t> _buffer;
+};
+
 class AppMedia {
    public:
     AppMedia(rtvi::RTVIClient* client) : _client(client) {
@@ -41,6 +148,9 @@ class AppMedia {
     virtual ~AppMedia() { Pa_Terminate(); }
 
     void start() {
+
+        _output.emplace(48000);
+
         PaError err = Pa_OpenDefaultStream(
                 &_input_stream,
                 1,
@@ -62,29 +172,7 @@ class AppMedia {
                     "PortAudio error: " + std::string(Pa_GetErrorText(err))
             );
         }
-
-        err = Pa_OpenDefaultStream(
-                &_output_stream,
-                0,
-                1,
-                paInt16,
-                48000,
-                paFramesPerBufferUnspecified,
-                nullptr,
-                nullptr
-        );
-        if (err != paNoError) {
-            throw std::runtime_error(
-                    "PortAudio error: " + std::string(Pa_GetErrorText(err))
-            );
-        }
-        err = Pa_StartStream(_output_stream);
-        if (err != paNoError) {
-            throw std::runtime_error(
-                    "PortAudio error: " + std::string(Pa_GetErrorText(err))
-            );
-        }
-    }
+   }
 
     void stop() {
         PaError err = Pa_StopStream(_input_stream);
@@ -101,33 +189,19 @@ class AppMedia {
             );
         }
 
-        err = Pa_StopStream(_output_stream);
-        if (err != paNoError) {
-            throw std::runtime_error(
-                    "PortAudio error: " + std::string(Pa_GetErrorText(err))
-            );
-        }
-
-        err = Pa_CloseStream(_output_stream);
-        if (err != paNoError) {
-            throw std::runtime_error(
-                    "PortAudio error: " + std::string(Pa_GetErrorText(err))
-            );
-        }
+        _output.reset();
     }
 
     void write_audio(
             const int16_t* frames,
-            size_t num_frames,
-            uint32_t sample_rate,
-            uint32_t num_channels
+            size_t num_frames
     ) {
-        Pa_WriteStream(_output_stream, frames, num_frames);
+        _output->write_data(frames, num_frames);
     }
 
    private:
     PaStream* _input_stream;
-    PaStream* _output_stream;
+    std::optional<AudioOutput> _output;
     rtvi::RTVIClient* _client;
 };
 
@@ -238,7 +312,7 @@ class App : public rtvi::RTVIEventCallbacks {
             uint32_t sample_rate,
             uint32_t num_channels
     ) override {
-        _media->write_audio(frames, num_frames, sample_rate, num_channels);
+        _media->write_audio(frames, num_frames);
     }
 
    private:

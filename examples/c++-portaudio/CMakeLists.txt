@@ -63,7 +63,7 @@ pkg_check_modules(PORTAUDIO REQUIRED portaudio-2.0)
 #
 # C++ and Linker flags.
 #
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -fno-rtti")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -fno-rtti -g")
 
 #
 # This project header directories.
