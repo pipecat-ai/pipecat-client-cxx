@@ -3,7 +3,7 @@
     "configurePresets": [
       {
         "name": "vcpkg",
-        "generator": "Ninja",
+        "generator": "Visual Studio 16 2019",
         "binaryDir": "${sourceDir}/build",
         "cacheVariables": {
           "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
