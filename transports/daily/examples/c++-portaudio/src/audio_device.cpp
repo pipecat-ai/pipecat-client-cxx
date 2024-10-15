@@ -4,6 +4,14 @@
 
 #include "audio_device.h"
 
+#ifdef _WIN32
+#include <windows.h>
+#define SLEEP_MS(ms) Sleep(ms)
+#else
+#include <unistd.h>
+#define SLEEP_MS(ms) usleep((ms) * 1000)
+#endif
+
 AudioInput::AudioInput(rtvi::RTVIClient* client, const uint32_t sample_rate)
     : _recording(false),
       _client(client),
@@ -132,8 +140,12 @@ void AudioOutput::read_thread_handler() {
     size_t num_frames = 160;
     int16_t* frames = (int16_t*)malloc(num_frames * sizeof(int16_t));
     while (_started) {
-        _client->read_bot_audio(frames, num_frames);
-        append_audio(frames, num_frames);
+        size_t read_frames = _client->read_bot_audio(frames, num_frames);
+        if (read_frames > 0) {
+            append_audio(frames, num_frames);
+        } else {
+            SLEEP_MS(1);
+        }
     }
 }
 
