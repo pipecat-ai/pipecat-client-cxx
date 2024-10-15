@@ -112,14 +112,17 @@ class App : public rtvi::RTVIEventCallbacks {
         std::cout << std::endl << ">>> Bot stopped speaking" << std::endl;
     }
 
-    void on_bot_tts_text(const rtvi::BotTTSTextData& data) override {
+    void on_bot_transcript(const rtvi::BotTranscriptData& data) override {
         std::cout << std::endl
-                  << ">>> Bot TTS text: " << data.text << std::endl;
+                  << ">>> Bot transcript: " << data.text << std::endl;
+    }
+
+    void on_bot_tts_text(const rtvi::BotTTSTextData& data) override {
+        // Words as they are being spoken by the bot.
     }
 
     void on_bot_llm_text(const rtvi::BotLLMTextData& data) override {
-        std::cout << std::endl
-                  << ">>> Bot LLM text: " << data.text << std::endl;
+        // LLM tokens.
     }
 
    private:
