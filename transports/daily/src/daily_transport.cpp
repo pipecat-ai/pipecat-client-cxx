@@ -475,12 +475,12 @@ void DailyTransport::on_rtvi_message(const nlohmann::json& message) {
             _options.callbacks->on_bot_stopped_speaking(_bot_participant);
         }
         break;
-    case hash("tts-text"): {
-        auto bot_data = BotTTSTextData {
+    case hash("bot-transcription"): {
+        auto bot_data = BotTranscriptData {
                 .text = message["data"]["text"].get<std::string>()
         };
         if (_options.callbacks) {
-            _options.callbacks->on_bot_tts_text(bot_data);
+            _options.callbacks->on_bot_transcript(bot_data);
         }
         break;
     }
