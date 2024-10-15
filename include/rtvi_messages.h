@@ -18,6 +18,10 @@ struct UserTranscriptData {
     std::string user_id;
 };
 
+struct BotTranscriptData {
+    std::string text;
+};
+
 struct BotLLMTextData {
     std::string text;
 };

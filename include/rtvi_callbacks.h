@@ -28,6 +28,7 @@ class RTVIEventCallbacks {
     virtual void on_bot_ready() {}
     virtual void on_bot_started_speaking(const nlohmann::json&) {}
     virtual void on_bot_stopped_speaking(const nlohmann::json&) {}
+    virtual void on_bot_transcript(const BotTranscriptData&) {}
     virtual void on_bot_tts_text(const BotTTSTextData&) {}
     virtual void on_bot_llm_text(const BotLLMTextData&) {}
 
