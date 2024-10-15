@@ -475,6 +475,8 @@ void DailyTransport::on_rtvi_message(const nlohmann::json& message) {
             _options.callbacks->on_bot_stopped_speaking(_bot_participant);
         }
         break;
+    // `tts-text`: RTVI 0.1.0 backwards compatibilty
+    case hash("tts-text"):
     case hash("bot-transcription"): {
         auto bot_data = BotTranscriptData {
                 .text = message["data"]["text"].get<std::string>()
