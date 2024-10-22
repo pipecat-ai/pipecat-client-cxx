@@ -33,7 +33,7 @@ struct RTVIClientOptions {
     RTVIEventCallbacks* callbacks;
 };
 
-class RTVIClient {
+class RTVIClient : public RTVITransportMessageObserver {
    public:
     explicit RTVIClient(
             const RTVIClientOptions& options,
@@ -57,12 +57,16 @@ class RTVIClient {
 
     virtual int32_t read_bot_audio(int16_t* frames, size_t num_frames);
 
+    // RTVITransportMessageObserver
+    void on_transport_message(const nlohmann::json& message);
+
    private:
     nlohmann::json connect_to_endpoint(
             const std::string& url,
             const nlohmann::json& body,
             const std::vector<std::string>& headers
     ) const;
+    void on_action_response(const nlohmann::json& response);
 
    private:
     std::atomic<bool> _initialized;
@@ -71,6 +75,10 @@ class RTVIClient {
     std::mutex _mutex;
     RTVIClientOptions _options;
     std::unique_ptr<RTVITransport> _transport;
+
+    // RTVI action-response
+    std::mutex _actions_mutex;
+    std::map<std::string, RTVIActionCallback> _action_callbacks;
 };
 
 }  // namespace rtvi

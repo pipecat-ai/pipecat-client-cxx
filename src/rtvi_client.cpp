@@ -9,6 +9,12 @@
 
 using namespace rtvi;
 
+// Simple hashing function so we can fake pattern matching and switch on strings
+// as a constexpr so it gets evaluated in compile time for static strings
+constexpr unsigned int hash(const char* s, int off = 0) {
+    return !s[off] ? 5381 : (hash(s, off + 1) * 33) ^ s[off];
+}
+
 RTVIClient::RTVIClient(
         const RTVIClientOptions& options,
         std::unique_ptr<RTVITransport> transport
@@ -75,7 +81,7 @@ void RTVIClient::send_action(const nlohmann::json& action) {
         return;
     }
 
-    _transport->send_action(action);
+    _transport->send_message(action);
 }
 
 void RTVIClient::send_action(
@@ -86,7 +92,12 @@ void RTVIClient::send_action(
         return;
     }
 
-    _transport->send_action(action, callback);
+    std::unique_lock<std::mutex> lock(_actions_mutex);
+    std::string action_id = action["id"].get<std::string>();
+    _action_callbacks[action_id] = callback;
+    lock.unlock();
+
+    _transport->send_message(action);
 }
 
 int32_t RTVIClient::send_user_audio(const int16_t* frames, size_t num_frames) {
@@ -101,8 +112,111 @@ int32_t RTVIClient::read_bot_audio(int16_t* frames, size_t num_frames) {
     if (!_connected) {
         return 0;
     }
-
     return _transport->read_bot_audio(frames, num_frames);
+}
+void RTVIClient::on_transport_message(const nlohmann::json& message) {
+    if (_options.callbacks) {
+        _options.callbacks->on_message(message);
+    }
+
+    auto type = message["type"].get<std::string>();
+    switch (hash(type.c_str())) {
+    case hash("action-response"):
+        on_action_response(message);
+        break;
+    case hash("bot-ready"):
+        if (_options.callbacks) {
+            _options.callbacks->on_bot_ready();
+        }
+        break;
+    case hash("bot-started-speaking"):
+        if (_options.callbacks) {
+            _options.callbacks->on_bot_started_speaking(nlohmann::json::object()
+            );
+        }
+        break;
+    case hash("bot-stopped-speaking"):
+        if (_options.callbacks) {
+            _options.callbacks->on_bot_stopped_speaking(nlohmann::json::object()
+            );
+        }
+        break;
+    // `tts-text`: RTVI 0.1.0 backwards compatibilty
+    case hash("tts-text"):
+    case hash("bot-transcription"): {
+        auto bot_data = BotTranscriptData {
+                .text = message["data"]["text"].get<std::string>()
+        };
+        if (_options.callbacks) {
+            _options.callbacks->on_bot_transcript(bot_data);
+        }
+        break;
+    }
+    case hash("bot-tts-started"): {
+        if (_options.callbacks) {
+            _options.callbacks->on_bot_tts_started(nlohmann::json::object());
+        }
+        break;
+    }
+    case hash("bot-tts-stopped"): {
+        if (_options.callbacks) {
+            _options.callbacks->on_bot_tts_stopped(nlohmann::json::object());
+        }
+        break;
+    }
+    case hash("bot-tts-text"): {
+        auto bot_data = BotTTSTextData {
+                .text = message["data"]["text"].get<std::string>()
+        };
+        if (_options.callbacks) {
+            _options.callbacks->on_bot_tts_text(bot_data);
+        }
+        break;
+    }
+    case hash("bot-llm-started"): {
+        if (_options.callbacks) {
+            _options.callbacks->on_bot_llm_started(nlohmann::json::object());
+        }
+        break;
+    }
+    case hash("bot-llm-stopped"): {
+        if (_options.callbacks) {
+            _options.callbacks->on_bot_llm_stopped(nlohmann::json::object());
+        }
+        break;
+    }
+    case hash("bot-llm-text"): {
+        auto bot_data = BotLLMTextData {
+                .text = message["data"]["text"].get<std::string>()
+        };
+        if (_options.callbacks) {
+            _options.callbacks->on_bot_llm_text(bot_data);
+        }
+        break;
+    }
+    case hash("user-started-speaking"):
+        if (_options.callbacks) {
+            _options.callbacks->on_user_started_speaking();
+        }
+        break;
+    case hash("user-stopped-speaking"):
+        if (_options.callbacks) {
+            _options.callbacks->on_user_stopped_speaking();
+        }
+        break;
+    case hash("user-transcription"): {
+        auto bot_data = UserTranscriptData {
+                .text = message["data"]["text"].get<std::string>(),
+                .final = message["data"]["final"].get<bool>(),
+                .timestamp = message["data"]["timestamp"].get<std::string>(),
+                .user_id = message["data"]["user_id"].get<std::string>()
+        };
+        if (_options.callbacks) {
+            _options.callbacks->on_user_transcript(bot_data);
+        }
+        break;
+    }
+    }
 }
 
 // Private
@@ -171,4 +285,19 @@ nlohmann::json RTVIClient::connect_to_endpoint(
     curl_easy_cleanup(curl);
 
     return nlohmann::json::parse(response_body);
+}
+
+void RTVIClient::on_action_response(const nlohmann::json& response) {
+    std::unique_lock<std::mutex> lock(_actions_mutex);
+    std::string action_id = response["id"].get<std::string>();
+    RTVIActionCallback action_callback = nullptr;
+    if (_action_callbacks.find(action_id) != _action_callbacks.end()) {
+        action_callback = _action_callbacks[action_id];
+        _action_callbacks.erase(action_id);
+    }
+    lock.unlock();
+
+    if (action_callback) {
+        action_callback(response["data"]);
+    }
 }
