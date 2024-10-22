@@ -1,5 +1,5 @@
 {
-  "bot_profile": "voice_2024_08",
+  "bot_profile": "voice_2024_10",
   "max_duration": 600,
   "services": {
     "llm": "together",
