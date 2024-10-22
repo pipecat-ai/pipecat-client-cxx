@@ -26,11 +26,15 @@ struct DailyTransportParams {
 
 class DailyTransport : public RTVITransport {
    public:
-    explicit DailyTransport(const RTVIClientOptions& options);
+    explicit DailyTransport(
+            const RTVIClientOptions& options,
+            RTVITransportMessageObserver* message_observer
+    );
 
     explicit DailyTransport(
             const RTVIClientOptions& options,
-            const DailyTransportParams& params
+            const DailyTransportParams& params,
+            RTVITransportMessageObserver* message_observer
     );
 
     virtual ~DailyTransport() override;
@@ -42,11 +46,6 @@ class DailyTransport : public RTVITransport {
     void disconnect() override;
 
     void send_message(const nlohmann::json& message) override;
-
-    void send_action(const nlohmann::json& action) override;
-
-    void send_action(const nlohmann::json& action, RTVIActionCallback callback)
-            override;
 
     int32_t send_user_audio(const int16_t* data, size_t num_frames) override;
     int32_t read_bot_audio(int16_t* data, size_t num_frames) override;
@@ -78,8 +77,6 @@ class DailyTransport : public RTVITransport {
             const nlohmann::json& participant,
             const std::string& reason
     );
-    void on_rtvi_message(const nlohmann::json& message);
-    void on_rtvi_action_response(const nlohmann::json& response);
 
    private:
     std::atomic<bool> _initialized;
@@ -87,6 +84,7 @@ class DailyTransport : public RTVITransport {
 
     RTVIClientOptions _options;
     DailyTransportParams _params;
+    RTVITransportMessageObserver* _message_observer;
 
     DailyRawCallClient* _client;
     NativeDeviceManager* _device_manager;
@@ -97,10 +95,6 @@ class DailyTransport : public RTVITransport {
     std::mutex _completions_mutex;
     std::atomic<uint64_t> _request_id;
     std::map<uint64_t, std::promise<void>> _completions;
-
-    // RTVI action-response
-    std::mutex _actions_mutex;
-    std::map<std::string, RTVIActionCallback> _action_callbacks;
 
     std::thread _msg_thread;
     RTVIQueue<nlohmann::json> _msg_queue;
