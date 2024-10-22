@@ -109,21 +109,17 @@ class App : public rtvi::RTVIEventCallbacks {
         std::cout << std::endl << ">>> Bot ready" << std::endl;
     }
 
-    void on_bot_started_speaking(const nlohmann::json& bot) override {
-        std::cout << std::endl << ">>> Bot started speaking" << std::endl;
+    void on_bot_tts_started(const nlohmann::json& bot) override {
+        std::cout << std::endl << ">>> Bot started TTS" << std::endl;
     }
 
-    void on_bot_stopped_speaking(const nlohmann::json& bot) override {
-        std::cout << std::endl << ">>> Bot stopped speaking" << std::endl;
-    }
-
-    void on_bot_transcript(const rtvi::BotTranscriptData& data) override {
-        std::cout << std::endl
-                  << ">>> Bot transcript: " << data.text << std::endl;
+    void on_bot_tts_stopped(const nlohmann::json& bot) override {
+        std::cout << std::endl << ">>> Bot stopped TTS" << std::endl;
     }
 
     void on_bot_tts_text(const rtvi::BotTTSTextData& data) override {
         // Words as they are being spoken by the bot.
+        std::cout << data.text << " " << std::flush;
     }
 
     void on_bot_llm_text(const rtvi::BotLLMTextData& data) override {
