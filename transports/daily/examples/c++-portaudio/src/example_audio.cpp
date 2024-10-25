@@ -109,12 +109,12 @@ class App : public rtvi::RTVIEventCallbacks {
         std::cout << std::endl << ">>> Bot ready" << std::endl;
     }
 
-    void on_bot_tts_started(const nlohmann::json& bot) override {
-        std::cout << std::endl << ">>> Bot started TTS" << std::endl;
+    void on_bot_started_speaking(const nlohmann::json& bot) override {
+        std::cout << std::endl << ">>> Bot started speaking" << std::endl;
     }
 
-    void on_bot_tts_stopped(const nlohmann::json& bot) override {
-        std::cout << std::endl << ">>> Bot stopped TTS" << std::endl;
+    void on_bot_stopped_speaking(const nlohmann::json& bot) override {
+        std::cout << std::endl << ">>> Bot stopped speaking" << std::endl;
     }
 
     void on_bot_tts_text(const rtvi::BotTTSTextData& data) override {
