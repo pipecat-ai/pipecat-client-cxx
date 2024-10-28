@@ -20,7 +20,8 @@
 #define SLEEP_MS(ms) usleep((ms) * 1000)
 #endif
 
-class App : public rtvi::RTVIEventCallbacks {
+class App : public rtvi::RTVIEventCallbacks,
+            public rtvi::RTVILLMHelperCallbacks {
    public:
     App(const std::string& url, const nlohmann::json& config) : _running(true) {
         std::vector<std::string> headers;
@@ -47,6 +48,10 @@ class App : public rtvi::RTVIEventCallbacks {
                 rtvi::RTVIClientOptions {.params = params, .callbacks = this};
 
         _client = std::make_unique<rtvi::DailyVoiceClient>(options);
+
+        auto llm_options = rtvi::RTVILLMHelperOptions {.callbacks = this};
+        _llm_helper = std::make_shared<rtvi::RTVILLMHelper>(llm_options);
+        _client->register_helper("llm", _llm_helper);
 
         _audio = std::make_unique<AudioDevice>(_client.get());
     }
@@ -126,10 +131,33 @@ class App : public rtvi::RTVIEventCallbacks {
         // LLM tokens.
     }
 
+    // RTVILLMHelperCallbacks
+
+    std::optional<nlohmann::json> on_function_call(
+            const rtvi::LLMFunctionCallData& function_call
+    ) {
+        std::cout << std::endl
+                  << ">>> Function call: " << function_call.function_name
+                  << std::endl;
+
+        std::optional<nlohmann::json> result = std::nullopt;
+
+        if (function_call.function_name == "get_current_weather") {
+            result = {{"conditions", "sunny"}, {"temperature", "78"}};
+        }
+
+        return result;
+    }
+
+    void on_function_call_start(const std::string& function_name) {
+        // A function is about to be called.
+    }
+
    private:
     std::atomic<bool> _running;
     std::unique_ptr<AudioDevice> _audio;
     std::unique_ptr<rtvi::RTVIClient> _client;
+    std::shared_ptr<rtvi::RTVILLMHelper> _llm_helper;
 };
 
 static std::unique_ptr<App> app;

@@ -20,10 +20,6 @@ static DailyTransportParams DEFAULT_TRANSPORT_PARAMS = {
         .bot_audio_channels = 1,
 };
 
-constexpr unsigned int hash(const char* s, int off = 0) {
-    return !s[off] ? 5381 : (hash(s, off + 1) * 33) ^ s[off];
-}
-
 static WebrtcAudioDeviceModule* create_audio_device_module_cb(
         DailyRawWebRtcContextDelegate* delegate,
         WebrtcTaskQueueFactory* task_queue_factory
