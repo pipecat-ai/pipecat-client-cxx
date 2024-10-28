@@ -104,11 +104,11 @@ class App : public rtvi::RTVIEventCallbacks {
         _client->send_action(action);
     }
 
-    void on_bot_started_speaking(const nlohmann::json& bot) override {
+    void on_bot_started_speaking() override {
         std::cout << std::endl << ">>> Bot started speaking" << std::endl;
     }
 
-    void on_bot_stopped_speaking(const nlohmann::json& bot) override {
+    void on_bot_stopped_speaking() override {
         std::cout << std::endl << ">>> Bot stopped speaking" << std::endl;
     }
 
