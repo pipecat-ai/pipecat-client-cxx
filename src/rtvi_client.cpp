@@ -131,14 +131,12 @@ void RTVIClient::on_transport_message(const nlohmann::json& message) {
         break;
     case hash("bot-started-speaking"):
         if (_options.callbacks) {
-            _options.callbacks->on_bot_started_speaking(nlohmann::json::object()
-            );
+            _options.callbacks->on_bot_started_speaking();
         }
         break;
     case hash("bot-stopped-speaking"):
         if (_options.callbacks) {
-            _options.callbacks->on_bot_stopped_speaking(nlohmann::json::object()
-            );
+            _options.callbacks->on_bot_stopped_speaking();
         }
         break;
     // `tts-text`: RTVI 0.1.0 backwards compatibilty
@@ -154,13 +152,13 @@ void RTVIClient::on_transport_message(const nlohmann::json& message) {
     }
     case hash("bot-tts-started"): {
         if (_options.callbacks) {
-            _options.callbacks->on_bot_tts_started(nlohmann::json::object());
+            _options.callbacks->on_bot_tts_started();
         }
         break;
     }
     case hash("bot-tts-stopped"): {
         if (_options.callbacks) {
-            _options.callbacks->on_bot_tts_stopped(nlohmann::json::object());
+            _options.callbacks->on_bot_tts_stopped();
         }
         break;
     }
@@ -175,13 +173,13 @@ void RTVIClient::on_transport_message(const nlohmann::json& message) {
     }
     case hash("bot-llm-started"): {
         if (_options.callbacks) {
-            _options.callbacks->on_bot_llm_started(nlohmann::json::object());
+            _options.callbacks->on_bot_llm_started();
         }
         break;
     }
     case hash("bot-llm-stopped"): {
         if (_options.callbacks) {
-            _options.callbacks->on_bot_llm_stopped(nlohmann::json::object());
+            _options.callbacks->on_bot_llm_stopped();
         }
         break;
     }
