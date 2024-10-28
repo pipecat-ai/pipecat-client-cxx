@@ -9,12 +9,6 @@
 
 using namespace rtvi;
 
-// Simple hashing function so we can fake pattern matching and switch on strings
-// as a constexpr so it gets evaluated in compile time for static strings
-constexpr unsigned int hash(const char* s, int off = 0) {
-    return !s[off] ? 5381 : (hash(s, off + 1) * 33) ^ s[off];
-}
-
 RTVIClient::RTVIClient(
         const RTVIClientOptions& options,
         std::unique_ptr<RTVITransport> transport
@@ -114,6 +108,20 @@ int32_t RTVIClient::read_bot_audio(int16_t* frames, size_t num_frames) {
     }
     return _transport->read_bot_audio(frames, num_frames);
 }
+
+void RTVIClient::register_helper(
+        const std::string& service,
+        std::shared_ptr<RTVIHelper> helper
+) {
+    std::unique_lock<std::mutex> lock(_helpers_mutex);
+    _helpers[service] = helper;
+}
+
+void RTVIClient::unregister_helper(const std::string& service) {
+    std::unique_lock<std::mutex> lock(_helpers_mutex);
+    _helpers.erase(service);
+}
+
 void RTVIClient::on_transport_message(const nlohmann::json& message) {
     if (_options.callbacks) {
         _options.callbacks->on_message(message);
@@ -142,10 +150,10 @@ void RTVIClient::on_transport_message(const nlohmann::json& message) {
     // `tts-text`: RTVI 0.1.0 backwards compatibilty
     case hash("tts-text"):
     case hash("bot-transcription"): {
-        auto bot_data = BotTranscriptData {
-                .text = message["data"]["text"].get<std::string>()
-        };
         if (_options.callbacks) {
+            auto bot_data = BotTranscriptData {
+                    .text = message["data"]["text"].get<std::string>()
+            };
             _options.callbacks->on_bot_transcript(bot_data);
         }
         break;
@@ -163,10 +171,10 @@ void RTVIClient::on_transport_message(const nlohmann::json& message) {
         break;
     }
     case hash("bot-tts-text"): {
-        auto bot_data = BotTTSTextData {
-                .text = message["data"]["text"].get<std::string>()
-        };
         if (_options.callbacks) {
+            auto bot_data = BotTTSTextData {
+                    .text = message["data"]["text"].get<std::string>()
+            };
             _options.callbacks->on_bot_tts_text(bot_data);
         }
         break;
@@ -184,10 +192,10 @@ void RTVIClient::on_transport_message(const nlohmann::json& message) {
         break;
     }
     case hash("bot-llm-text"): {
-        auto bot_data = BotLLMTextData {
-                .text = message["data"]["text"].get<std::string>()
-        };
         if (_options.callbacks) {
+            auto bot_data = BotLLMTextData {
+                    .text = message["data"]["text"].get<std::string>()
+            };
             _options.callbacks->on_bot_llm_text(bot_data);
         }
         break;
@@ -203,16 +211,27 @@ void RTVIClient::on_transport_message(const nlohmann::json& message) {
         }
         break;
     case hash("user-transcription"): {
-        auto bot_data = UserTranscriptData {
-                .text = message["data"]["text"].get<std::string>(),
-                .final = message["data"]["final"].get<bool>(),
-                .timestamp = message["data"]["timestamp"].get<std::string>(),
-                .user_id = message["data"]["user_id"].get<std::string>()
-        };
         if (_options.callbacks) {
+            auto bot_data = UserTranscriptData {
+                    .text = message["data"]["text"].get<std::string>(),
+                    .final = message["data"]["final"].get<bool>(),
+                    .timestamp =
+                            message["data"]["timestamp"].get<std::string>(),
+                    .user_id = message["data"]["user_id"].get<std::string>()
+            };
             _options.callbacks->on_user_transcript(bot_data);
         }
         break;
+    }
+    default: {
+        std::unique_lock<std::mutex> lock(_helpers_mutex);
+        for (const auto& [service, helper]: _helpers) {
+            auto supported = helper->supported_messages();
+            if (std::find(supported.begin(), supported.end(), type) !=
+                supported.end()) {
+                helper->handle_message(_transport.get(), message);
+            }
+        }
     }
     }
 }

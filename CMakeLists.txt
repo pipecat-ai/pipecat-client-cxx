@@ -16,6 +16,7 @@ endif()
 
 set(RTVI_SOURCES
   src/rtvi_client.cpp
+  src/rtvi_llm_helper.cpp
   src/rtvi_utils.cpp
 )
 
@@ -25,6 +26,8 @@ set(RTVI_HEADERS
   include/rtvi_callbacks.h
   include/rtvi_client.h
   include/rtvi_exceptions.h
+  include/rtvi_helper.h
+  include/rtvi_llm_helper.h
   include/rtvi_messages.h
   include/rtvi_transport.h
   include/rtvi_utils.h

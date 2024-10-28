@@ -6,13 +6,13 @@
 #define RTVI_CLIENT_H
 
 #include "rtvi_callbacks.h"
+#include "rtvi_helper.h"
 #include "rtvi_transport.h"
 
 #include "json.hpp"
 
 #include <memory>
 #include <mutex>
-#include <optional>
 #include <string>
 #include <vector>
 
@@ -57,6 +57,13 @@ class RTVIClient : public RTVITransportMessageObserver {
 
     virtual int32_t read_bot_audio(int16_t* frames, size_t num_frames);
 
+    virtual void register_helper(
+            const std::string& service,
+            std::shared_ptr<RTVIHelper> helper
+    );
+
+    virtual void unregister_helper(const std::string& service);
+
     // RTVITransportMessageObserver
     void on_transport_message(const nlohmann::json& message);
 
@@ -79,6 +86,10 @@ class RTVIClient : public RTVITransportMessageObserver {
     // RTVI action-response
     std::mutex _actions_mutex;
     std::map<std::string, RTVIActionCallback> _action_callbacks;
+
+    // RTVI helpers
+    std::mutex _helpers_mutex;
+    std::map<std::string, std::shared_ptr<RTVIHelper>> _helpers;
 };
 
 }  // namespace rtvi

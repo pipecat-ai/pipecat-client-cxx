@@ -16,6 +16,12 @@ namespace rtvi {
 
 std::string generate_random_id();
 
+// Simple hashing function so we can fake pattern matching and switch on strings
+// as a constexpr so it gets evaluated in compile time for static strings
+constexpr unsigned int hash(const char* s, int off = 0) {
+    return !s[off] ? 5381 : (hash(s, off + 1) * 33) ^ s[off];
+}
+
 template<typename T>
 class RTVIQueue {
    public:
