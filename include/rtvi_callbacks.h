@@ -13,7 +13,7 @@
 
 namespace rtvi {
 
-typedef std::function<void(const nlohmann::json& action)> RTVIActionCallback;
+typedef std::function<void(const nlohmann::json&)> RTVIActionCallback;
 
 class RTVIEventCallbacks {
    public:
