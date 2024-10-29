@@ -123,10 +123,6 @@ void RTVIClient::unregister_helper(const std::string& service) {
 }
 
 void RTVIClient::on_transport_message(const nlohmann::json& message) {
-    if (_options.callbacks) {
-        _options.callbacks->on_message(message);
-    }
-
     auto type = message["type"].get<std::string>();
     switch (hash(type.c_str())) {
     case hash("action-response"):
@@ -225,12 +221,18 @@ void RTVIClient::on_transport_message(const nlohmann::json& message) {
     }
     default: {
         std::unique_lock<std::mutex> lock(_helpers_mutex);
+        bool handled = false;
         for (const auto& [service, helper]: _helpers) {
             auto supported = helper->supported_messages();
             if (std::find(supported.begin(), supported.end(), type) !=
                 supported.end()) {
                 helper->handle_message(_transport.get(), message);
+                handled = true;
             }
+        }
+
+        if (!handled && _options.callbacks) {
+            _options.callbacks->on_generic_message(message);
         }
     }
     }

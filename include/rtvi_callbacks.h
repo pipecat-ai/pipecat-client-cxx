@@ -40,7 +40,7 @@ class RTVIEventCallbacks {
     virtual void on_user_stopped_speaking() {}
     virtual void on_user_transcript(const UserTranscriptData&) {}
 
-    virtual void on_message(const nlohmann::json&) {}
+    virtual void on_generic_message(const nlohmann::json&) {}
     virtual void on_message_error(const nlohmann::json&) {}
 };
 
