@@ -83,6 +83,11 @@ class App : public rtvi::RTVIEventCallbacks,
         _audio->stop();
     }
 
+    void on_error(const nlohmann::json& error) override {
+        std::cout << std::endl << ">>> Server error: " << error.dump() << std::endl;
+        _running = false;
+    }
+
     void on_user_started_speaking() override {
         std::cout << std::endl << ">>> User started speaking" << std::endl;
     }
