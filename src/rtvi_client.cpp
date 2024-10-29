@@ -133,6 +133,11 @@ void RTVIClient::on_transport_message(const nlohmann::json& message) {
             _options.callbacks->on_message_error(message);
         }
         break;
+    case hash("error"):
+        if (_options.callbacks) {
+            _options.callbacks->on_error(message);
+        }
+        break;
     case hash("bot-ready"):
         if (_options.callbacks) {
             _options.callbacks->on_bot_ready();

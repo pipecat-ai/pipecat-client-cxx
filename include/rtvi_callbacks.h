@@ -21,6 +21,7 @@ class RTVIEventCallbacks {
 
     virtual void on_connected() {}
     virtual void on_disconnected() {}
+    virtual void on_error(const nlohmann::json&) {}
 
     virtual void on_bot_connected(const nlohmann::json&) {}
     virtual void
