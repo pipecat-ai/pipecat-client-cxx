@@ -80,7 +80,22 @@ export DAILY_BOTS_API_KEY=...
 Here's how you would try it:
 
 ```bash
-./build/example_audio -b https://api.daily.co/v1/bots/start -c config.json
+./build/example_audio -b https://api.daily.co/v1/bots/start -c config_voice_2024_10.json
 ```
 
-You can take a look at the sample [configuration file](config.json).
+You can take a look at the sample [configuration
+file](config_voice_2024_10.json). This file uses the `voice_2024_10` Daily Bots
+profile.
+
+You can also use another profile such as `openai_realtime_beta_2024_10`. A
+[configuration file](config_openai_realtime_beta_2024_10.json) is also
+provided. In this case, Daily Bots requires that you provide your own OpenAI
+Realtime API key which you can do directly in the configuration file for testing
+purposes, however it's recommended that you use a proxy server that makes the
+Daily Bots request for you as explained [here](../../README.md#security).
+
+After adding your OpenAI Realtime API key you can run it with:
+
+```bash
+./build/example_audio -b https://api.daily.co/v1/bots/start -c config_openai_realtime_beta_2024_10.json
+```
