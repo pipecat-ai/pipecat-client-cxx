@@ -4,7 +4,7 @@
 
 cmake_minimum_required(VERSION 3.16)
 
-project(rtvi LANGUAGES CXX)
+project(pipecat LANGUAGES CXX)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -14,13 +14,13 @@ else()
   set(CMAKE_CXX_STANDARD 17)
 endif()
 
-set(RTVI_SOURCES
+set(PIPECAT_SOURCES
   src/rtvi_client.cpp
   src/rtvi_llm_helper.cpp
   src/rtvi_utils.cpp
 )
 
-set(RTVI_HEADERS
+set(PIPECAT_HEADERS
   include/json.hpp
   include/rtvi.h
   include/rtvi_callbacks.h
@@ -33,10 +33,10 @@ set(RTVI_HEADERS
   include/rtvi_utils.h
 )
 
-add_library(rtvi STATIC ${RTVI_HEADERS} ${RTVI_SOURCES})
+add_library(pipecat STATIC ${PIPECAT_HEADERS} ${PIPECAT_SOURCES})
 
-set_target_properties(rtvi PROPERTIES
-  OUTPUT_NAME $<IF:$<CONFIG:Debug>,rtvid,rtvi>
+set_target_properties(pipecat PROPERTIES
+  OUTPUT_NAME $<IF:$<CONFIG:Debug>,pipecatd,pipecat>
   ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lib/$<CONFIG>"
 )
 
@@ -48,7 +48,7 @@ find_package(CURL REQUIRED)
 #
 # This project header directories.
 #
-target_include_directories(rtvi
+target_include_directories(pipecat
   PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   ${CURL_INCLUDE_DIRS}
