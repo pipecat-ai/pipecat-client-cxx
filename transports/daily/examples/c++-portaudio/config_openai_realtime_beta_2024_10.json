@@ -4,9 +4,6 @@
   "services": {
     "llm": "openai_realtime"
   },
-  "api_keys": {
-    "openai_realtime": "OPENAI_API_KEY"
-  },
   "config": [
     {
       "service": "tts",

@@ -1,6 +1,6 @@
-# Daily RTVI C++ client SDK
+# Daily Pipecat C++ client SDK
 
-`rtvi-client-cxx-daily` is a C++ SDK to build native RTVI client
+`pipecat-client-cxx-daily` is a C++ SDK to build native Pipecat client
 applications with [Daily](https://www.daily.co/products/daily-bots/).
 
 It supports Linux (`x86_64` and `aarch64`), macOS (`aarch64`) and Windows
@@ -12,7 +12,7 @@ For a quickstart check the [Examples](#examples) section below.
 
 ## Daily Core C++ SDK
 
-Daily RTVI C++ client SDK requires the [Daily Core C++
+Daily Pipecat C++ client SDK requires the [Daily Core C++
 SDK](https://github.com/daily-co/daily-core-sdk) to be able to connect to
 Daily's infrastructure. You can download it from the [available
 releases](https://github.com/daily-co/daily-core-sdk/releases) for your
@@ -24,16 +24,16 @@ Then, define the following environment variable:
 DAILY_CORE_PATH=/path/to/daily-core-sdk
 ```
 
-## RTVI C++ client SDK
+## Pipecat C++ client SDK
 
-It also requires the base [RTVI C++ client
-SDK](https://github.com/pipecat-ai/rtvi-client-cxx). Please, follow the
+It also requires the base [Pipecat C++ client
+SDK](https://github.com/pipecat-ai/pipecat-client-cxx). Please, follow the
 instructions on that project to build it.
 
 Then, define the following environment variable:
 
 ```
-RTVI_SDK_PATH=/path/to/rtvi-client-cxx
+PIPECAT_SDK_PATH=/path/to/pipecat-client-cxx
 ```
 
 # Building
@@ -41,7 +41,7 @@ RTVI_SDK_PATH=/path/to/rtvi-client-cxx
 Before building the example we need to declare a few environment variables:
 
 ```bash
-RTVI_SDK_PATH=/path/to/rtvi-client-cxx
+PIPECAT_SDK_PATH=/path/to/pipecat-client-cxx
 DAILY_CORE_PATH=/path/to/daily-core-sdk
 ```
 
@@ -105,11 +105,11 @@ These are the list of available examples:
 The following are quickstart instructions for Linux and macOS. For Windows, go
 to one of the examples above for instructions.
 
-The first thing to do is build the Daily RTVI C++ client library as described
+The first thing to do is build the Daily Pipecat C++ client library as described
 above:
 
 ```bash
-export RTVI_SDK_PATH=/PATH/TO/rtvi-client-cxx
+export PIPECAT_SDK_PATH=/PATH/TO/pipecat-client-cxx
 export DAILY_CORE_PATH=/PATH/TO/daily-core-sdk-X.Y.Z-PLATFORM
 cmake . -G Ninja -Bbuild
 ninja -C build
@@ -119,7 +119,7 @@ Then, just build one of the examples:
 
 ```bash
 cd examples/c++-portaudio
-export DAILY_RTVI_SDK_PATH=/PATH/TO/rtvi-client-c++-daily
+export DAILY_PIPECAT_SDK_PATH=/PATH/TO/pipecat-client-c++-daily
 cmake . -G Ninja -Bbuild
 ninja -C build
 ```

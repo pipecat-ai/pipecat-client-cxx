@@ -32,8 +32,8 @@ The `portaudio` dependency will be automatically when building.
 Before building the example we need to declare a few environment variables:
 
 ```bash
-RTVI_SDK_PATH=/path/to/rtvi-client-cxx
-DAILY_RTVI_SDK_PATH=/path/to/rtvi-client-cxx-daily
+PIPECAT_SDK_PATH=/path/to/pipecat-client-cxx
+DAILY_PIPECAT_SDK_PATH=/path/to/pipecat-client-cxx-daily
 DAILY_CORE_PATH=/path/to/daily-core-sdk
 ```
 
