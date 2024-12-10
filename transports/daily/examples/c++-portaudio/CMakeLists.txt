@@ -31,9 +31,9 @@ add_executable(example_audio ${EXAMPLE_AUDIO_SOURCES} ${EXAMPLE_AUDIO_HEADERS})
 
 find_package(DailyCore)
 
-find_package(RTVI)
+find_package(Pipecat)
 
-find_package(DailyRTVI)
+find_package(DailyPipecat)
 
 #
 # Look for libcurl
@@ -71,15 +71,15 @@ endif()
 target_include_directories(example_audio
   PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/include
-  ${DAILY_RTVI_INCLUDE_DIRS}
-  ${RTVI_INCLUDE_DIRS}
+  ${DAILY_PIPECAT_INCLUDE_DIRS}
+  ${PIPECAT_INCLUDE_DIRS}
   ${DAILY_CORE_INCLUDE_DIRS}
 )
 
 target_link_libraries(example_audio
   PRIVATE
-  ${DAILY_RTVI_LIBRARIES}
-  ${RTVI_LIBRARIES}
+  ${DAILY_PIPECAT_LIBRARIES}
+  ${PIPECAT_LIBRARIES}
   ${DAILY_CORE_LIBRARIES}
   CURL::libcurl
 )

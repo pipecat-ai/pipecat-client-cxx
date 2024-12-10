@@ -24,9 +24,9 @@ add_executable(example ${EXAMPLE_SOURCES})
 
 find_package(DailyCore)
 
-find_package(RTVI)
+find_package(Pipecat)
 
-find_package(DailyRTVI)
+find_package(DailyPipecat)
 
 #
 # Look for libcurl
@@ -38,15 +38,15 @@ find_package(CURL REQUIRED)
 #
 target_include_directories(example
   PRIVATE
-  ${DAILY_RTVI_INCLUDE_DIRS}
-  ${RTVI_INCLUDE_DIRS}
+  ${DAILY_PIPECAT_INCLUDE_DIRS}
+  ${PIPECAT_INCLUDE_DIRS}
   ${DAILY_CORE_INCLUDE_DIRS}
 )
 
 target_link_libraries(example
   PRIVATE
-  ${DAILY_RTVI_LIBRARIES}
-  ${RTVI_LIBRARIES}
+  ${DAILY_PIPECAT_LIBRARIES}
+  ${PIPECAT_LIBRARIES}
   ${DAILY_CORE_LIBRARIES}
   CURL::libcurl
 )

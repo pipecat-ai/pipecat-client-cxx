@@ -4,7 +4,7 @@
 
 cmake_minimum_required(VERSION 3.16)
 
-project(daily_rtvi LANGUAGES CXX)
+project(daily_pipecat LANGUAGES CXX)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -16,35 +16,35 @@ else()
   set(CMAKE_CXX_STANDARD 17)
 endif()
 
-set(DAILY_RTVI_SOURCES
+set(DAILY_PIPECAT_SOURCES
   src/daily_transport.cpp
   src/daily_voice_client.cpp
 )
 
-set(RTVI_HEADERS
+set(DAILY_PIPECAT_HEADERS
   include/daily_rtvi.h
   include/daily_transport.h
   include/daily_voice_client.h
 )
 
-add_library(daily_rtvi STATIC ${DAILY_RTVI_HEADERS} ${DAILY_RTVI_SOURCES})
+add_library(daily_pipecat STATIC ${DAILY_PIPECAT_HEADERS} ${DAILY_PIPECAT_SOURCES})
 
-set_target_properties(daily_rtvi PROPERTIES
-  OUTPUT_NAME $<IF:$<CONFIG:Debug>,daily_rtvid,daily_rtvi>
+set_target_properties(daily_pipecat PROPERTIES
+  OUTPUT_NAME $<IF:$<CONFIG:Debug>,daily_pipecatd,daily_pipecat>
   ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lib/$<CONFIG>"
 )
 
 find_package(DailyCore)
 
-find_package(RTVI)
+find_package(Pipecat)
 
 #
 # This project header directories.
 #
-target_include_directories(daily_rtvi
+target_include_directories(daily_pipecat
   PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/include
-  ${RTVI_INCLUDE_DIRS}
+  ${PIPECAT_INCLUDE_DIRS}
   ${DAILY_CORE_INCLUDE_DIRS}
 )
 
