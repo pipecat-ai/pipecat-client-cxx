@@ -1,6 +1,6 @@
-# RTVI C++ client SDK
+# Pipecat C++ client SDK
 
-`rtvi-client-cxx` is a C++ SDK to build native RTVI client applications.
+`pipecat-client-cxx` is a C++ SDK to build native Pipecat client applications.
 
 It supports Linux (`x86_64` and `aarch64`), macOS (`aarch64`) and Windows
 (`x86_64`).
@@ -61,4 +61,3 @@ It is possible to build the example for the `aarch64` architecture in Linux with
 cmake . -G Ninja -Bbuild -DCMAKE_TOOLCHAIN_FILE=aarch64-linux-toolchain.cmake -DCMAKE_BUILD_TYPE=Release
 ninja -C build
 ```
-
