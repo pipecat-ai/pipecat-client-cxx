@@ -4,7 +4,7 @@
 
 [![Discord](https://img.shields.io/discord/1239284677165056021)](https://discord.gg/pipecat)
 
-`pipecat-client-cxx` is a C++ SDK to build native Pipecat client applications.
+`pipecat-client-cxx` is a C++ SDK to build native [Pipecat](https://pipecat.ai) client applications.
 
 It supports Linux (`x86_64` and `aarch64`), macOS (`aarch64`) and Windows
 (`x86_64`).
