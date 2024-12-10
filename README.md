@@ -2,7 +2,7 @@
  <img alt="pipecat" width="300px" height="auto" src="https://raw.githubusercontent.com/pipecat-ai/pipecat-client-cxx/main/pipecat-cxx.png">
 </div></h1>
 
-[![Discord](https://img.shields.io/discord/1239284677165056021)](https://discord.gg/pipecat) <a href="https://app.commanddash.io/agent/github_pipecat-ai_pipecat"><img src="https://img.shields.io/badge/AI-Code%20Agent-EB9FDA"></a>
+[![Discord](https://img.shields.io/discord/1239284677165056021)](https://discord.gg/pipecat)
 
 `pipecat-client-cxx` is a C++ SDK to build native Pipecat client applications.
 
