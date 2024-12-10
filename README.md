@@ -1,3 +1,7 @@
+<h1><div align="center">
+ <img alt="pipecat" width="300px" height="auto" src="https://raw.githubusercontent.com/pipecat-ai/pipecat-client-cxx/main/pipecat.png">
+</div></h1>
+
 # Pipecat C++ client SDK
 
 `pipecat-client-cxx` is a C++ SDK to build native Pipecat client applications.
