@@ -2,8 +2,6 @@
  <img alt="pipecat" width="300px" height="auto" src="https://raw.githubusercontent.com/pipecat-ai/pipecat-client-cxx/main/pipecat-cxx.png">
 </div></h1>
 
-# Pipecat C++ client SDK
-
 `pipecat-client-cxx` is a C++ SDK to build native Pipecat client applications.
 
 It supports Linux (`x86_64` and `aarch64`), macOS (`aarch64`) and Windows
