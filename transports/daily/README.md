@@ -1,7 +1,12 @@
-# Daily Pipecat C++ client SDK
+<h1><div align="center">
+ <img alt="pipecat" width="300px" height="auto" src="https://raw.githubusercontent.com/pipecat-ai/pipecat-client-cxx-daily/main/pipecat-cxx.png">
+</div></h1>
 
-`pipecat-client-cxx-daily` is a C++ SDK to build native Pipecat client
-applications with [Daily](https://www.daily.co/products/daily-bots/).
+[![Discord](https://img.shields.io/discord/1239284677165056021)](https://discord.gg/pipecat)
+
+`pipecat-client-cxx-daily` is a C++ SDK to build native
+[Pipecat](https://pipecat.ai) client applications with
+[Daily](https://www.daily.co/products/daily-bots/).
 
 It supports Linux (`x86_64` and `aarch64`), macOS (`aarch64`) and Windows
 (`x86_64`).
