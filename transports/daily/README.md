@@ -1,5 +1,5 @@
 <h1><div align="center">
- <img alt="pipecat" width="300px" height="auto" src="https://raw.githubusercontent.com/pipecat-ai/pipecat-client-cxx-daily/main/pipecat-cxx.png">
+ <img alt="pipecat" width="500px" height="auto" src="https://raw.githubusercontent.com/pipecat-ai/pipecat-client-cxx-daily/main/pipecat-cxx.png">
 </div></h1>
 
 [![Discord](https://img.shields.io/discord/1239284677165056021)](https://discord.gg/pipecat)
