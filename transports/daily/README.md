@@ -53,7 +53,7 @@ DAILY_CORE_PATH=/path/to/daily-core-sdk
 ## Linux and macOS
 
 ```bash
-cmake . -G Ninja -Bbuild
+cmake . -G Ninja -Bbuild -DCMAKE_BUILD_TYPE=Release
 ninja -C build
 ```
 
@@ -77,7 +77,7 @@ cmake --build build --config Release
 It is possible to build the example for the `aarch64` architecture in Linux with:
 
 ```bash
-cmake . -G Ninja -Bbuild -DCMAKE_TOOLCHAIN_FILE=aarch64-linux-toolchain.cmake
+cmake . -G Ninja -Bbuild -DCMAKE_TOOLCHAIN_FILE=aarch64-linux-toolchain.cmake -DCMAKE_BUILD_TYPE=Release
 ninja -C build
 ```
 
@@ -116,7 +116,7 @@ above:
 ```bash
 export PIPECAT_SDK_PATH=/PATH/TO/pipecat-client-cxx
 export DAILY_CORE_PATH=/PATH/TO/daily-core-sdk-X.Y.Z-PLATFORM
-cmake . -G Ninja -Bbuild
+cmake . -G Ninja -Bbuild -DCMAKE_BUILD_TYPE=Release
 ninja -C build
 ```
 
@@ -125,7 +125,7 @@ Then, just build one of the examples:
 ```bash
 cd examples/c++-portaudio
 export DAILY_PIPECAT_SDK_PATH=/PATH/TO/pipecat-client-c++-daily
-cmake . -G Ninja -Bbuild
+cmake . -G Ninja -Bbuild -DCMAKE_BUILD_TYPE=Release
 ninja -C build
 ```
 
