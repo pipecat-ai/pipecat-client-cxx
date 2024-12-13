@@ -2,7 +2,7 @@
  <img alt="pipecat" width="500px" height="auto" src="https://raw.githubusercontent.com/pipecat-ai/pipecat-client-cxx/main/pipecat-cxx.png">
 </div></h1>
 
-[![Discord](https://img.shields.io/discord/1239284677165056021)](https://discord.gg/pipecat)
+[![Docs](https://img.shields.io/badge/Documentation-blue)](https://docs.pipecat.ai) [![Discord](https://img.shields.io/discord/1239284677165056021)](https://discord.gg/pipecat)
 
 `pipecat-client-cxx` is a C++ SDK to build native [Pipecat](https://pipecat.ai) client applications.
 
