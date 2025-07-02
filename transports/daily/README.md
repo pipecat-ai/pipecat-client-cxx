@@ -4,6 +4,8 @@
 
 [![Docs](https://img.shields.io/badge/Documentation-blue)](https://docs.pipecat.ai) [![Discord](https://img.shields.io/discord/1239284677165056021)](https://discord.gg/pipecat)
 
+# Daily Transport for Pipecat C++ Client SDK
+
 `pipecat-client-cxx-daily` is a C++ SDK to build native
 [Pipecat](https://pipecat.ai) client applications with
 [Daily](https://www.daily.co/products/daily-bots/).
@@ -13,9 +15,9 @@ It supports Linux (`x86_64` and `aarch64`), macOS (`aarch64`) and Windows
 
 For a quickstart check the [Examples](#examples) section below.
 
-# Dependencies
+## 📦 Dependencies
 
-## Daily Core C++ SDK
+### Daily Core C++ SDK
 
 Daily Pipecat C++ client SDK requires the [Daily Core C++
 SDK](https://github.com/daily-co/daily-core-sdk) to be able to connect to
@@ -29,7 +31,7 @@ Then, define the following environment variable:
 DAILY_CORE_PATH=/path/to/daily-core-sdk
 ```
 
-## Pipecat C++ client SDK
+### Pipecat C++ client SDK
 
 It also requires the base [Pipecat C++ client
 SDK](https://github.com/pipecat-ai/pipecat-client-cxx). Please, follow the
@@ -41,7 +43,7 @@ Then, define the following environment variable:
 PIPECAT_SDK_PATH=/path/to/pipecat-client-cxx
 ```
 
-# Building
+## 🛠️ Building
 
 Before building the example we need to declare a few environment variables:
 
@@ -50,14 +52,14 @@ PIPECAT_SDK_PATH=/path/to/pipecat-client-cxx
 DAILY_CORE_PATH=/path/to/daily-core-sdk
 ```
 
-## Linux and macOS
+### Linux and macOS
 
 ```bash
 cmake . -G Ninja -Bbuild -DCMAKE_BUILD_TYPE=Release
 ninja -C build
 ```
 
-## Windows
+### Windows
 
 Initialize the command-line development environment.
 
@@ -72,7 +74,7 @@ cmake . -Bbuild --preset vcpkg
 cmake --build build --config Release
 ```
 
-# Cross-compiling (Linux aarch64)
+### Cross-compiling (Linux aarch64)
 
 It is possible to build the example for the `aarch64` architecture in Linux with:
 
@@ -81,7 +83,7 @@ cmake . -G Ninja -Bbuild -DCMAKE_TOOLCHAIN_FILE=aarch64-linux-toolchain.cmake -D
 ninja -C build
 ```
 
-# Security
+## 🔒 Security
 
 To avoid sharing API keys in the client (including the Daily Bots API key) or if
 you want to use your custom API keys for different services (e.g. OpenAI) you
@@ -97,7 +99,7 @@ node server.js
 This will expose http://localhost:3000/start which is the URL you should use
 instead.
 
-# Examples
+## 📚 Examples
 
 These are the list of available examples:
 
@@ -105,7 +107,7 @@ These are the list of available examples:
 - [Daily Bots C++ client example with audio support (PortAudio)](./examples/c++-portaudio)
 - An optional [Daily Bots Node.js server example](./examples/server)
 
-## Quickstart (Linux and macOS)
+## 🚀 Quickstart (Linux and macOS)
 
 The following are quickstart instructions for Linux and macOS. For Windows, go
 to one of the examples above for instructions.
