@@ -4,28 +4,37 @@
 
 [![Docs](https://img.shields.io/badge/Documentation-blue)](https://docs.pipecat.ai) [![Discord](https://img.shields.io/discord/1239284677165056021)](https://discord.gg/pipecat)
 
+# Pipecat C++ Client SDK
+
 `pipecat-client-cxx` is a C++ SDK to build native [Pipecat](https://pipecat.ai) client applications.
 
 It supports Linux (`x86_64` and `aarch64`), macOS (`aarch64`) and Windows
 (`x86_64`).
 
-# Dependencies
+## 🌐 Transports
 
-## libcurl
+`pipecat-client-cxx` needs a transport in order to connect to your Pipecat
+bot. Currently available transports:
+
+- [Daily Transport for Pipecat C++ Client SDK](https://github.com/pipecat-ai/pipecat-client-cxx-daily)
+
+## 📦 Dependencies
+
+### libcurl
 
 We use [libcurl](https://curl.se/libcurl/) to make HTTP requests.
 
-### Linux
+#### Linux
 
 ```bash
 sudo apt-get install libcurl4-openssl-dev
 ```
 
-### macOS
+#### macOS
 
 On macOS `libcurl` is already included so there is nothing to install.
 
-### Windows
+#### Windows
 
 On Windows we use [vcpkg](https://vcpkg.io/en/) to install dependencies. You
 need to set it up following one of the
@@ -33,16 +42,16 @@ need to set it up following one of the
 
 The `libcurl` dependency will be automatically downloaded when building.
 
-# Building
+## 🛠️ Building
 
-## Linux and macOS
+### Linux and macOS
 
 ```bash
 cmake . -G Ninja -Bbuild -DCMAKE_BUILD_TYPE=Release
 ninja -C build
 ```
 
-## Windows
+### Windows
 
 Initialize the command-line development environment.
 
@@ -57,7 +66,7 @@ cmake . -Bbuild --preset vcpkg
 cmake --build build --config Release
 ```
 
-## Cross-compiling (Linux aarch64)
+### Cross-compiling (Linux aarch64)
 
 It is possible to build the example for the `aarch64` architecture in Linux with:
 
