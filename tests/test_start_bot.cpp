@@ -7,8 +7,7 @@
 // Uses a small POSIX socket server, so these don't run on Windows.
 #ifndef _WIN32
 
-#include "fake_transport.h"
-#include "recorder.h"
+#include "helpers.h"
 
 #include "pipecat/client.h"
 #include "pipecat/errors.h"
@@ -151,24 +150,12 @@ class HttpServer {
     std::thread _thread;
 };
 
-std::unique_ptr<PipecatClient>
-make_client(Recorder& recorder, FakeTransport** transport = nullptr) {
-    auto fake = std::make_unique<FakeTransport>();
-    if (transport != nullptr) {
-        *transport = fake.get();
-    }
-    PipecatClientOptions options;
-    options.transport = std::move(fake);
-    options.callbacks = &recorder;
-    return std::make_unique<PipecatClient>(std::move(options));
-}
-
 }  // namespace
 
 TEST(StartBot, PostsRequestAndReturnsResponse) {
     HttpServer server(200, R"({"room_url": "https://example.com/room"})");
     Recorder recorder;
-    auto client = make_client(recorder);
+    auto [transport, client] = make_client(recorder);
 
     APIRequest request;
     request.endpoint = server.url();
@@ -194,7 +181,7 @@ TEST(StartBot, PostsRequestAndReturnsResponse) {
 TEST(StartBot, ErrorResponse) {
     HttpServer server(401, R"({"info": "Invalid API key"})");
     Recorder recorder;
-    auto client = make_client(recorder);
+    auto [transport, client] = make_client(recorder);
 
     APIRequest request;
     request.endpoint = server.url();
@@ -213,7 +200,7 @@ TEST(StartBot, ErrorResponse) {
 TEST(StartBot, InvalidJsonResponse) {
     HttpServer server(200, "not json");
     Recorder recorder;
-    auto client = make_client(recorder);
+    auto [transport, client] = make_client(recorder);
 
     APIRequest request;
     request.endpoint = server.url();
@@ -222,7 +209,7 @@ TEST(StartBot, InvalidJsonResponse) {
 
 TEST(StartBot, Unreachable) {
     Recorder recorder;
-    auto client = make_client(recorder);
+    auto [transport, client] = make_client(recorder);
 
     APIRequest request;
     // Nothing listens on port 1.
@@ -239,7 +226,7 @@ TEST(StartBot, Unreachable) {
 TEST(StartBot, TimesOut) {
     HttpServer server(200, "{}", false);
     Recorder recorder;
-    auto client = make_client(recorder);
+    auto [transport, client] = make_client(recorder);
 
     APIRequest request;
     request.endpoint = server.url();
@@ -254,9 +241,9 @@ TEST(StartBot, TimesOut) {
 TEST(StartBot, DisconnectCancels) {
     HttpServer server(200, "{}", false);
     Recorder recorder;
-    auto client = make_client(recorder);
+    auto [transport, client] = make_client(recorder);
 
-    std::thread disconnector([&] {
+    std::thread disconnector([&server, client = client.get()] {
         // Wait until the request reached the server.
         server.request();
         client->disconnect();
@@ -279,8 +266,7 @@ TEST(StartBot, DisconnectCancels) {
 TEST(StartBot, StartBotAndConnect) {
     HttpServer server(200, R"({"room_url": "https://example.com/room"})");
     Recorder recorder;
-    FakeTransport* transport = nullptr;
-    auto client = make_client(recorder, &transport);
+    auto [transport, client] = make_client(recorder);
 
     APIRequest request;
     request.endpoint = server.url();

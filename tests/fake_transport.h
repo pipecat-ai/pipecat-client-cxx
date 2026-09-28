@@ -14,6 +14,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <functional>
 #include <future>
 #include <memory>
@@ -23,11 +24,17 @@
 #include <vector>
 
 // Builds an RTVI message as the bot would send it.
-inline nlohmann::json
-rtvi_message(const std::string& type, const nlohmann::json& data = nullptr) {
+inline nlohmann::json rtvi_message(
+        const std::string& type,
+        const nlohmann::json& data = nullptr,
+        const std::string& id = ""
+) {
     nlohmann::json message = {{"label", "rtvi-ai"}, {"type", type}};
     if (!data.is_null()) {
         message["data"] = data;
+    }
+    if (!id.empty()) {
+        message["id"] = id;
     }
     return message;
 }
@@ -45,8 +52,11 @@ class FakeTransport : public pipecat::Transport {
     // Answer client-ready with bot-ready.
     bool send_bot_ready = true;
     std::string bot_version = "2.1.0";
-    // Optional hook, run when disconnect() starts, on the caller's thread.
+    size_t max_size = 64 * 1024;
+    // Optional hooks, run when disconnect() or send_message() start, on the
+    // caller's thread.
     std::function<void()> on_disconnect;
+    std::function<void()> on_send_message;
 
     std::atomic<bool> deadlock_detected {false};
     std::atomic<int> initialize_count {0};
@@ -94,9 +104,17 @@ class FakeTransport : public pipecat::Transport {
     }
 
     void send_message(const pipecat::rtvi::Message& message) override {
-        std::lock_guard<std::mutex> lock(_mutex);
-        _sent_messages.push_back(message);
+        if (on_send_message) {
+            on_send_message();
+        }
+        {
+            std::lock_guard<std::mutex> lock(_mutex);
+            _sent_messages.push_back(message);
+        }
+        _sent_cv.notify_all();
     }
+
+    size_t max_message_size() const override { return max_size; }
 
     int32_t send_user_audio(const int16_t*, size_t num_frames) override {
         return static_cast<int32_t>(num_frames);
@@ -162,12 +180,36 @@ class FakeTransport : public pipecat::Transport {
         return _ready_message;
     }
 
-    std::vector<pipecat::rtvi::Message> sent_messages() {
+    // Messages sent to the bot, optionally only those of a type.
+    std::vector<pipecat::rtvi::Message> sent_messages(
+            const std::string& type = ""
+    ) {
         std::lock_guard<std::mutex> lock(_mutex);
-        return _sent_messages;
+        return sent_messages_locked(type);
+    }
+
+    // Waits until `count` messages of `type` were sent. Returns false after a
+    // timeout.
+    bool wait_for_sent(const std::string& type, size_t count = 1) {
+        std::unique_lock<std::mutex> lock(_mutex);
+        return _sent_cv.wait_for(lock, std::chrono::seconds(5), [&] {
+            return sent_messages_locked(type).size() >= count;
+        });
     }
 
    private:
+    std::vector<pipecat::rtvi::Message> sent_messages_locked(
+            const std::string& type
+    ) {
+        std::vector<pipecat::rtvi::Message> messages;
+        for (const auto& message: _sent_messages) {
+            if (type.empty() || message.type == type) {
+                messages.push_back(message);
+            }
+        }
+        return messages;
+    }
+
     // Blocks until the event thread runs a completion, like daily-core's
     // request-completed events.
     void complete_on_event_thread() {
@@ -190,6 +232,7 @@ class FakeTransport : public pipecat::Transport {
     std::atomic<bool> _connected {false};
 
     std::mutex _mutex;
+    std::condition_variable _sent_cv;
     nlohmann::json _connect_params;
     std::optional<pipecat::rtvi::Message> _ready_message;
     std::vector<pipecat::rtvi::Message> _sent_messages;

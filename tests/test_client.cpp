@@ -4,8 +4,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-#include "fake_transport.h"
-#include "recorder.h"
+#include "helpers.h"
 
 #include "pipecat/client.h"
 #include "pipecat/errors.h"
@@ -19,32 +18,6 @@
 using namespace pipecat;
 using nlohmann::json;
 using Events = std::vector<std::string>;
-
-namespace {
-
-struct TestClient {
-    FakeTransport* transport;
-    std::unique_ptr<PipecatClient> client;
-};
-
-TestClient make_client(
-        Recorder& recorder,
-        std::function<void(PipecatClientOptions&)> configure = {}
-) {
-    auto transport = std::make_unique<FakeTransport>();
-    FakeTransport* fake = transport.get();
-
-    PipecatClientOptions options;
-    options.transport = std::move(transport);
-    options.callbacks = &recorder;
-    options.connect_timeout = std::chrono::seconds(5);
-    if (configure) {
-        configure(options);
-    }
-    return {fake, std::make_unique<PipecatClient>(std::move(options))};
-}
-
-}  // namespace
 
 //
 // Lifecycle

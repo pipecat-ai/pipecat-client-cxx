@@ -11,11 +11,16 @@
 
 #include "pipecat/errors.h"
 
+#include <algorithm>
+#include <array>
 #include <atomic>
 #include <condition_variable>
+#include <map>
 #include <mutex>
 #include <optional>
+#include <thread>
 #include <utility>
+#include <vector>
 
 using nlohmann::json;
 
@@ -70,6 +75,25 @@ std::string start_bot_error_message(const HttpResponse& response) {
     return "Start endpoint returned HTTP " + std::to_string(response.status);
 }
 
+// Parses a protocol version like "2.1.0". Missing or invalid parts are 0.
+std::array<int, 3> parse_version(const std::string& version) {
+    std::array<int, 3> parts = {0, 0, 0};
+    size_t start = 0;
+    for (int& part: parts) {
+        size_t end = version.find('.', start);
+        try {
+            part = std::stoi(version.substr(start, end - start));
+        } catch (const std::exception&) {
+            part = 0;
+        }
+        if (end == std::string::npos) {
+            break;
+        }
+        start = end + 1;
+    }
+    return parts;
+}
+
 }  // namespace
 
 class PipecatClient::Impl : public TransportObserver {
@@ -91,6 +115,23 @@ class PipecatClient::Impl : public TransportObserver {
     int32_t send_user_audio(const int16_t* frames, size_t num_frames);
     int32_t read_bot_audio(int16_t* frames, size_t num_frames);
 
+    void
+    send_text(const std::string& content, const rtvi::SendTextOptions& options);
+    void send_client_message(const std::string& type, const json& data);
+    void send_client_request(
+            const std::string& type,
+            const json& data,
+            ClientResponseCallback callback,
+            std::chrono::milliseconds timeout
+    );
+    std::future<json> send_client_request(
+            const std::string& type,
+            const json& data,
+            std::chrono::milliseconds timeout
+    );
+    void disconnect_bot();
+    void send_dtmf(const std::string& buttons);
+
     // TransportObserver
     void on_transport_message(const json& message) override;
     void on_bot_connected(const Participant& bot) override;
@@ -101,6 +142,14 @@ class PipecatClient::Impl : public TransportObserver {
 
    private:
     using Callback = std::function<void(PipecatClientCallbacks&)>;
+    using RequestCompletion = std::function<void(const ClientResponse&)>;
+
+    // A client request waiting for its answer. `complete` is called once,
+    // without locks held, by whichever thread resolves the request.
+    struct PendingRequest {
+        std::chrono::steady_clock::time_point deadline;
+        RequestCompletion complete;
+    };
 
     // Queues a callback on the event loop. notify_locked() expects _mutex
     // to be held.
@@ -138,13 +187,33 @@ class PipecatClient::Impl : public TransportObserver {
     // caller can check why it failed without letting other events in.
     void fail_connect(uint64_t session, std::unique_lock<std::mutex> lock);
 
-    // Ends the session: disconnects the transport and moves to
-    // `end_state`. `lock` must hold _mutex.
+    // Ends the session: cancels the pending requests, disconnects the
+    // transport and moves to `end_state`. `lock` must hold _mutex.
     void
     end_session(std::unique_lock<std::mutex> lock, TransportState end_state);
 
     void handle_message(const rtvi::Message& message);
     void handle_bot_ready(const rtvi::BotReadyData& data);
+
+    // Sends a message if the bot is ready and it's not too large.
+    void send(const rtvi::Message& message);
+
+    // Sends a client request, and calls `complete` once with its answer, a
+    // timeout or a disconnection. Throws if it can't be sent, unless a
+    // disconnection already completed it, so the failure is reported once.
+    void send_request(
+            const rtvi::Message& message,
+            std::chrono::milliseconds timeout,
+            RequestCompletion complete
+    );
+    void
+    complete_request(const std::string& id, const ClientResponse& response);
+    // Removes all pending requests. Expects _mutex to be held. Pass the result
+    // to cancel_requests() once it's released.
+    std::vector<RequestCompletion> take_requests_locked();
+    static void cancel_requests(const std::vector<RequestCompletion>& requests);
+    // Fails requests that timed out. Runs on its own thread.
+    void run_request_timer();
 
     PipecatClientCallbacks* _callbacks;
     bool _disconnect_on_bot_disconnect;
@@ -152,7 +221,8 @@ class PipecatClient::Impl : public TransportObserver {
     rtvi::AboutClientData _about;
 
     mutable std::mutex _mutex;
-    // Notified whenever the state changes.
+    // Notified when the state or the pending requests change, and when the
+    // client is destroyed.
     std::condition_variable _cv;
     // Changed with _mutex held, but read without it where only the current
     // state matters, so e.g. the audio methods never wait on audio threads.
@@ -161,13 +231,16 @@ class PipecatClient::Impl : public TransportObserver {
     // in progress can tell it was cancelled.
     uint64_t _session = 0;
     std::optional<rtvi::BotReadyData> _bot_ready;
-    // start_bot() and connect() fail once the destructor runs.
+    std::map<std::string, PendingRequest> _requests;
+    // start_bot() and connect() fail, and the request timer stops, once the
+    // destructor runs.
     bool _destroying = false;
 
     // Serializes transport initialize(), connect() and disconnect() calls.
     std::mutex _transport_mutex;
     bool _initialized = false;
 
+    std::thread _request_timer;
     EventLoop _loop;
     // Destroyed first, while the rest is still alive, since the transport can
     // report events while it shuts down.
@@ -183,6 +256,7 @@ PipecatClient::Impl::Impl(PipecatClientOptions options)
     if (!_transport) {
         throw PipecatError("PipecatClientOptions::transport is required");
     }
+    _request_timer = std::thread([this] { run_request_timer(); });
 }
 
 void PipecatClient::Impl::close() {
@@ -190,7 +264,10 @@ void PipecatClient::Impl::close() {
         std::lock_guard<std::mutex> lock(_mutex);
         _destroying = true;
     }
+    _cv.notify_all();
+    _request_timer.join();
 
+    // Also cancels the pending requests.
     try {
         disconnect();
     } catch (...) {
@@ -392,7 +469,9 @@ void PipecatClient::Impl::end_session(
     bool was_connected = is_connected(_state);
     ++_session;
     set_state_locked(TransportState::Disconnecting);
+    std::vector<RequestCompletion> requests = take_requests_locked();
     lock.unlock();
+    cancel_requests(requests);
 
     {
         std::lock_guard<std::mutex> transport_lock(_transport_mutex);
@@ -484,16 +563,22 @@ void PipecatClient::Impl::on_participant_left(const Participant& participant) {
 }
 
 void PipecatClient::Impl::on_transport_disconnected() {
-    std::lock_guard<std::mutex> lock(_mutex);
-    if (!is_started(_state)) {
-        return;
+    std::vector<RequestCompletion> requests;
+    {
+        std::lock_guard<std::mutex> lock(_mutex);
+        if (!is_started(_state)) {
+            return;
+        }
+        bool was_connected = is_connected(_state);
+        ++_session;
+        set_state_locked(TransportState::Disconnected);
+        if (was_connected) {
+            notify_locked([](PipecatClientCallbacks& c) { c.on_disconnected(); }
+            );
+        }
+        requests = take_requests_locked();
     }
-    bool was_connected = is_connected(_state);
-    ++_session;
-    set_state_locked(TransportState::Disconnected);
-    if (was_connected) {
-        notify_locked([](PipecatClientCallbacks& c) { c.on_disconnected(); });
-    }
+    cancel_requests(requests);
 }
 
 //
@@ -519,15 +604,23 @@ void PipecatClient::Impl::handle_message(const rtvi::Message& message) {
     case MessageType::Error:
         notify_data(data, &C::on_error);
         break;
-    case MessageType::ErrorResponse:
-        notify_data(data, &C::on_message_error);
+    case MessageType::ErrorResponse: {
+        auto error = data.get<rtvi::ErrorData>();
+        ClientResponse response;
+        response.error = error.error;
+        complete_request(message.id, response);
+        notify([error](C& c) { c.on_message_error(error); });
         break;
+    }
     case MessageType::ServerMessage:
         notify([data](C& c) { c.on_server_message(data); });
         break;
-    case MessageType::ServerResponse:
-        // Answers a client request, and this client doesn't send any.
+    case MessageType::ServerResponse: {
+        ClientResponse response;
+        response.data = data.get<rtvi::ClientMessageData>().data;
+        complete_request(message.id, response);
         break;
+    }
     case MessageType::Metrics:
         notify_data(data, &C::on_metrics);
         break;
@@ -583,10 +676,12 @@ void PipecatClient::Impl::handle_message(const rtvi::Message& message) {
         notify_event(&C::on_bot_tts_stopped);
         break;
     case MessageType::LLMFunctionCall:
-    case MessageType::LLMFunctionCallInProgress:
+    case MessageType::LLMFunctionCallInProgress: {
         // The deprecated llm-function-call parses as in-progress data.
-        notify_data(data, &C::on_llm_function_call_in_progress);
+        auto call = data.get<rtvi::LLMFunctionCallInProgressData>();
+        notify([call](C& c) { c.on_llm_function_call_in_progress(call); });
         break;
+    }
     case MessageType::LLMFunctionCallStarted:
         notify_data(data, &C::on_llm_function_call_started);
         break;
@@ -614,6 +709,233 @@ void PipecatClient::Impl::handle_bot_ready(const rtvi::BotReadyData& data) {
         notify_locked([data](PipecatClientCallbacks& c) {
             c.on_bot_ready(data);
         });
+    }
+}
+
+//
+// Messaging
+//
+
+void PipecatClient::Impl::send(const rtvi::Message& message) {
+    if (_state != TransportState::Ready) {
+        throw BotNotReadyError();
+    }
+
+    size_t size = json(message).dump().size();
+    size_t max_size = _transport->max_message_size();
+    if (size > max_size) {
+        throw MessageTooLargeError(
+                "Message is " + std::to_string(size) +
+                " bytes, the transport allows " + std::to_string(max_size)
+        );
+    }
+
+    _transport->send_message(message);
+}
+
+void PipecatClient::Impl::send_text(
+        const std::string& content,
+        const rtvi::SendTextOptions& options
+) {
+    send(rtvi::Message::send_text(content, options));
+}
+
+void PipecatClient::Impl::send_client_message(
+        const std::string& type,
+        const json& data
+) {
+    send(rtvi::Message::client_message(type, data));
+}
+
+void PipecatClient::Impl::send_client_request(
+        const std::string& type,
+        const json& data,
+        ClientResponseCallback callback,
+        std::chrono::milliseconds timeout
+) {
+    send_request(
+            rtvi::Message::client_message(type, data),
+            timeout,
+            [this,
+             callback = std::move(callback)](const ClientResponse& response) {
+                _loop.post([callback, response] {
+                    if (callback) {
+                        callback(response);
+                    }
+                });
+            }
+    );
+}
+
+std::future<json> PipecatClient::Impl::send_client_request(
+        const std::string& type,
+        const json& data,
+        std::chrono::milliseconds timeout
+) {
+    auto promise = std::make_shared<std::promise<json>>();
+    auto future = promise->get_future();
+
+    // Completed on the thread that resolves the request, never the event
+    // loop, so callbacks can wait for the future.
+    auto complete = [promise](const ClientResponse& response) {
+        if (!response.error) {
+            promise->set_value(response.data);
+        } else if (response.timed_out) {
+            promise->set_exception(std::make_exception_ptr(
+                    RequestTimeoutError(*response.error)
+            ));
+        } else {
+            promise->set_exception(
+                    std::make_exception_ptr(MessageError(*response.error))
+            );
+        }
+    };
+    send_request(rtvi::Message::client_message(type, data), timeout, complete);
+    return future;
+}
+
+void PipecatClient::Impl::disconnect_bot() {
+    send(rtvi::Message::disconnect_bot());
+}
+
+void PipecatClient::Impl::send_dtmf(const std::string& buttons) {
+    if (buttons.empty() ||
+        buttons.find_first_not_of("0123456789*#") != std::string::npos) {
+        throw PipecatError(
+                "Invalid DTMF keys \"" + buttons +
+                "\", only 0-9, * and # are allowed"
+        );
+    }
+
+    std::array<int, 3> version;
+    {
+        std::lock_guard<std::mutex> lock(_mutex);
+        if (_state != TransportState::Ready) {
+            throw BotNotReadyError();
+        }
+        version = parse_version(_bot_ready->version);
+    }
+
+    if (version[0] < 2) {
+        throw UnsupportedFeatureError(
+                "DTMF", "the bot needs RTVI protocol 2.0.0 or newer"
+        );
+    }
+    if (version[0] == 2 && version[1] < 1) {
+        // Protocol 2.0 bots take one key per message.
+        for (char button: buttons) {
+            send(rtvi::Message::dtmf_button(button));
+        }
+    } else {
+        send(rtvi::Message::dtmf(buttons));
+    }
+}
+
+//
+// Client requests
+//
+
+void PipecatClient::Impl::send_request(
+        const rtvi::Message& message,
+        std::chrono::milliseconds timeout,
+        RequestCompletion complete
+) {
+    PendingRequest request;
+    request.deadline = timeout.count() > 0
+                               ? std::chrono::steady_clock::now() + timeout
+                               : std::chrono::steady_clock::time_point::max();
+    request.complete = std::move(complete);
+
+    // Added before sending, so an answer that arrives right away isn't lost.
+    {
+        std::lock_guard<std::mutex> lock(_mutex);
+        _requests[message.id] = std::move(request);
+        _cv.notify_all();
+    }
+
+    try {
+        send(message);
+    } catch (...) {
+        std::lock_guard<std::mutex> lock(_mutex);
+        if (_requests.erase(message.id) > 0) {
+            throw;
+        }
+    }
+}
+
+void PipecatClient::Impl::complete_request(
+        const std::string& id,
+        const ClientResponse& response
+) {
+    RequestCompletion complete;
+    {
+        std::lock_guard<std::mutex> lock(_mutex);
+        auto it = _requests.find(id);
+        if (it == _requests.end()) {
+            // Not a request, or it already timed out.
+            return;
+        }
+        complete = std::move(it->second.complete);
+        _requests.erase(it);
+    }
+    complete(response);
+}
+
+std::vector<PipecatClient::Impl::RequestCompletion>
+PipecatClient::Impl::take_requests_locked() {
+    std::vector<RequestCompletion> requests;
+    for (auto& entry: _requests) {
+        requests.push_back(std::move(entry.second.complete));
+    }
+    _requests.clear();
+    return requests;
+}
+
+void PipecatClient::Impl::cancel_requests(
+        const std::vector<RequestCompletion>& requests
+) {
+    ClientResponse response;
+    response.error = "Disconnected before the bot answered";
+    for (const auto& complete: requests) {
+        complete(response);
+    }
+}
+
+void PipecatClient::Impl::run_request_timer() {
+    using Clock = std::chrono::steady_clock;
+
+    std::unique_lock<std::mutex> lock(_mutex);
+    while (!_destroying) {
+        auto now = Clock::now();
+        auto next = Clock::time_point::max();
+        std::vector<RequestCompletion> expired;
+        for (auto it = _requests.begin(); it != _requests.end();) {
+            if (it->second.deadline <= now) {
+                expired.push_back(std::move(it->second.complete));
+                it = _requests.erase(it);
+            } else {
+                next = std::min(next, it->second.deadline);
+                ++it;
+            }
+        }
+
+        if (!expired.empty()) {
+            lock.unlock();
+            ClientResponse response;
+            response.error = "Timed out waiting for a response";
+            response.timed_out = true;
+            for (const auto& complete: expired) {
+                complete(response);
+            }
+            lock.lock();
+            continue;
+        }
+
+        if (next == Clock::time_point::max()) {
+            _cv.wait(lock);
+        } else {
+            _cv.wait_until(lock, next);
+        }
     }
 }
 
@@ -724,6 +1046,45 @@ PipecatClient::send_user_audio(const int16_t* frames, size_t num_frames) {
 
 int32_t PipecatClient::read_bot_audio(int16_t* frames, size_t num_frames) {
     return _impl->read_bot_audio(frames, num_frames);
+}
+
+void PipecatClient::send_text(
+        const std::string& content,
+        const rtvi::SendTextOptions& options
+) {
+    _impl->send_text(content, options);
+}
+
+void PipecatClient::send_client_message(
+        const std::string& type,
+        const json& data
+) {
+    _impl->send_client_message(type, data);
+}
+
+void PipecatClient::send_client_request(
+        const std::string& type,
+        const json& data,
+        ClientResponseCallback callback,
+        std::chrono::milliseconds timeout
+) {
+    _impl->send_client_request(type, data, std::move(callback), timeout);
+}
+
+std::future<json> PipecatClient::send_client_request(
+        const std::string& type,
+        const json& data,
+        std::chrono::milliseconds timeout
+) {
+    return _impl->send_client_request(type, data, timeout);
+}
+
+void PipecatClient::disconnect_bot() {
+    _impl->disconnect_bot();
+}
+
+void PipecatClient::send_dtmf(const std::string& buttons) {
+    _impl->send_dtmf(buttons);
 }
 
 }  // namespace pipecat

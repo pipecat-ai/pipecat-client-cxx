@@ -98,6 +98,22 @@ class UnsupportedFeatureError : public PipecatError {
     std::string _feature;
 };
 
+// A client request failed: the bot answered with an error, or the client
+// disconnected before it answered.
+class MessageError : public PipecatError {
+   public:
+    using PipecatError::PipecatError;
+};
+
+// A client request got no answer in time.
+class RequestTimeoutError : public MessageError {
+   public:
+    explicit RequestTimeoutError(
+            const std::string& message = "Timed out waiting for a response"
+    )
+        : MessageError(message) {}
+};
+
 // A message is larger than the transport allows.
 class MessageTooLargeError : public PipecatError {
    public:

@@ -15,8 +15,11 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
+#include <future>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 
 namespace pipecat {
@@ -105,6 +108,19 @@ struct APIRequest {
     std::chrono::milliseconds timeout {0};
 };
 
+// Result of a send_client_request() with a callback.
+struct ClientResponse {
+    // What the bot answered with. Null if the request failed.
+    nlohmann::json data;
+    // Why the request failed: the bot answered with an error, it didn't
+    // answer in time, or the client disconnected first.
+    std::optional<std::string> error;
+    // Whether the request failed because the bot didn't answer in time.
+    bool timed_out = false;
+};
+
+using ClientResponseCallback = std::function<void(const ClientResponse&)>;
+
 struct PipecatClientOptions {
     // Required.
     std::unique_ptr<Transport> transport;
@@ -122,6 +138,10 @@ struct PipecatClientOptions {
 //
 // Methods are thread-safe. start_bot(), connect() and disconnect() block the
 // calling thread; everything else returns right away.
+//
+// Methods that send messages need the bot to be ready (throw
+// BotNotReadyError otherwise) and throw MessageTooLargeError if the message
+// is larger than the transport allows.
 class PipecatClient {
    public:
     explicit PipecatClient(PipecatClientOptions options);
@@ -170,6 +190,44 @@ class PipecatClient {
     // Reads 16-bit PCM bot audio. Returns the number of frames read, 0 if not
     // connected.
     int32_t read_bot_audio(int16_t* frames, size_t num_frames);
+
+    // Sends text to the bot's LLM, as if the user had said it.
+    void send_text(
+            const std::string& content,
+            const rtvi::SendTextOptions& options = {}
+    );
+
+    // Sends an app-defined message to the bot.
+    void send_client_message(
+            const std::string& type,
+            const nlohmann::json& data = nullptr
+    );
+
+    // Sends an app-defined message and calls `callback` with the bot's
+    // answer, on the event thread. Zero timeout waits forever.
+    void send_client_request(
+            const std::string& type,
+            const nlohmann::json& data,
+            ClientResponseCallback callback,
+            std::chrono::milliseconds timeout = std::chrono::seconds(10)
+    );
+
+    // Sends an app-defined message and returns the bot's answer. get() throws
+    // MessageError or RequestTimeoutError if it fails. Safe to wait on from a
+    // callback. Zero timeout waits forever.
+    std::future<nlohmann::json> send_client_request(
+            const std::string& type,
+            const nlohmann::json& data = nullptr,
+            std::chrono::milliseconds timeout = std::chrono::seconds(10)
+    );
+
+    // Asks the bot to leave, keeping the transport connected.
+    void disconnect_bot();
+
+    // Sends one or more DTMF keys (0-9, * and #), e.g. "123#". Throws
+    // PipecatError for other characters and UnsupportedFeatureError if the
+    // bot is older than RTVI protocol 2.0.0.
+    void send_dtmf(const std::string& buttons);
 
    private:
     class Impl;
