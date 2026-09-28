@@ -14,6 +14,15 @@ if(POLICY CMP0135)
   cmake_policy(SET CMP0135 NEW)
 endif()
 
+# Tests are only built by default when this is the top-level project, not when
+# it's included with add_subdirectory() or FetchContent.
+if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
+  set(PIPECAT_DAILY_TOP_LEVEL ON)
+else()
+  set(PIPECAT_DAILY_TOP_LEVEL OFF)
+endif()
+
+option(PIPECAT_DAILY_BUILD_TESTS "Build the unit tests" ${PIPECAT_DAILY_TOP_LEVEL})
 option(PIPECAT_DAILY_INSTALL "Generate the install target" ON)
 option(PIPECAT_DAILY_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
 
@@ -124,4 +133,12 @@ if(PIPECAT_DAILY_INSTALL)
     cmake/FindDailyCore.cmake
     DESTINATION ${PIPECAT_DAILY_CMAKE_DIR}
   )
+endif()
+
+#
+# Tests
+#
+if(PIPECAT_DAILY_BUILD_TESTS)
+  enable_testing()
+  add_subdirectory(tests)
 endif()
