@@ -198,8 +198,8 @@ Implement `pipecat::Transport` (see `include/pipecat/transport.h`):
 ## 🧪 Testing
 
 Unit tests use [GoogleTest](https://github.com/google/googletest), which is
-downloaded if it's not installed. They are built by default, and you can
-disable them with `-DPIPECAT_BUILD_TESTS=OFF`.
+downloaded if it's not installed. They are built by default, except when
+cross-compiling, and you can turn them off with `-DPIPECAT_BUILD_TESTS=OFF`.
 
 ```bash
 cd build && ctest --output-on-failure

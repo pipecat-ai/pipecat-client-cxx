@@ -15,14 +15,15 @@ if(POLICY CMP0135)
 endif()
 
 # Tests are only built by default when this is the top-level project, not when
-# it's included with add_subdirectory() or FetchContent.
-if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
-  set(PIPECAT_TOP_LEVEL ON)
+# it's included with add_subdirectory() or FetchContent. They're also off when
+# cross-compiling, since they can't run on this machine.
+if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR AND NOT CMAKE_CROSSCOMPILING)
+  set(PIPECAT_BUILD_TESTS_DEFAULT ON)
 else()
-  set(PIPECAT_TOP_LEVEL OFF)
+  set(PIPECAT_BUILD_TESTS_DEFAULT OFF)
 endif()
 
-option(PIPECAT_BUILD_TESTS "Build the unit tests" ${PIPECAT_TOP_LEVEL})
+option(PIPECAT_BUILD_TESTS "Build the unit tests" ${PIPECAT_BUILD_TESTS_DEFAULT})
 option(PIPECAT_INSTALL "Generate the install target" ON)
 option(PIPECAT_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
 option(PIPECAT_BUILD_DOCS "Build the API reference with Doxygen" OFF)
