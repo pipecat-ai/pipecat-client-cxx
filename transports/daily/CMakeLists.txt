@@ -15,14 +15,15 @@ if(POLICY CMP0135)
 endif()
 
 # Tests are only built by default when this is the top-level project, not when
-# it's included with add_subdirectory() or FetchContent.
-if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
-  set(PIPECAT_DAILY_TOP_LEVEL ON)
+# it's included with add_subdirectory() or FetchContent. They're also off when
+# cross-compiling, since they can't run on this machine.
+if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR AND NOT CMAKE_CROSSCOMPILING)
+  set(PIPECAT_DAILY_BUILD_TESTS_DEFAULT ON)
 else()
-  set(PIPECAT_DAILY_TOP_LEVEL OFF)
+  set(PIPECAT_DAILY_BUILD_TESTS_DEFAULT OFF)
 endif()
 
-option(PIPECAT_DAILY_BUILD_TESTS "Build the unit tests" ${PIPECAT_DAILY_TOP_LEVEL})
+option(PIPECAT_DAILY_BUILD_TESTS "Build the unit tests" ${PIPECAT_DAILY_BUILD_TESTS_DEFAULT})
 option(PIPECAT_DAILY_INSTALL "Generate the install target" ON)
 option(PIPECAT_DAILY_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
 
