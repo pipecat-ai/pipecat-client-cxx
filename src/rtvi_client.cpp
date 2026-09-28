@@ -157,9 +157,8 @@ void RTVIClient::on_transport_message(const nlohmann::json& message) {
     case hash("tts-text"):
     case hash("bot-transcription"): {
         if (_options.callbacks) {
-            auto bot_data = BotTranscriptData {
-                    .text = message["data"]["text"].get<std::string>()
-            };
+            BotTranscriptData bot_data;
+            bot_data.text = message["data"]["text"].get<std::string>();
             _options.callbacks->on_bot_transcript(bot_data);
         }
         break;
@@ -178,9 +177,8 @@ void RTVIClient::on_transport_message(const nlohmann::json& message) {
     }
     case hash("bot-tts-text"): {
         if (_options.callbacks) {
-            auto bot_data = BotTTSTextData {
-                    .text = message["data"]["text"].get<std::string>()
-            };
+            BotTTSTextData bot_data;
+            bot_data.text = message["data"]["text"].get<std::string>();
             _options.callbacks->on_bot_tts_text(bot_data);
         }
         break;
@@ -199,9 +197,8 @@ void RTVIClient::on_transport_message(const nlohmann::json& message) {
     }
     case hash("bot-llm-text"): {
         if (_options.callbacks) {
-            auto bot_data = BotLLMTextData {
-                    .text = message["data"]["text"].get<std::string>()
-            };
+            BotLLMTextData bot_data;
+            bot_data.text = message["data"]["text"].get<std::string>();
             _options.callbacks->on_bot_llm_text(bot_data);
         }
         break;
@@ -218,13 +215,12 @@ void RTVIClient::on_transport_message(const nlohmann::json& message) {
         break;
     case hash("user-transcription"): {
         if (_options.callbacks) {
-            auto bot_data = UserTranscriptData {
-                    .text = message["data"]["text"].get<std::string>(),
-                    .final = message["data"]["final"].get<bool>(),
-                    .timestamp =
-                            message["data"]["timestamp"].get<std::string>(),
-                    .user_id = message["data"]["user_id"].get<std::string>()
-            };
+            UserTranscriptData bot_data;
+            bot_data.text = message["data"]["text"].get<std::string>();
+            bot_data.final = message["data"]["final"].get<bool>();
+            bot_data.timestamp =
+                    message["data"]["timestamp"].get<std::string>();
+            bot_data.user_id = message["data"]["user_id"].get<std::string>();
             _options.callbacks->on_user_transcript(bot_data);
         }
         break;

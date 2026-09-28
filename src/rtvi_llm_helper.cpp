@@ -35,11 +35,10 @@ void RTVILLMHelper::handle_message(
                     message["data"]["tool_call_id"].get<std::string>();
             auto args = message["data"]["args"];
 
-            auto function_call_data = LLMFunctionCallData {
-                    .function_name = function_name,
-                    .tool_call_id = tool_call_id,
-                    .args = args,
-            };
+            LLMFunctionCallData function_call_data;
+            function_call_data.function_name = function_name;
+            function_call_data.tool_call_id = tool_call_id;
+            function_call_data.args = args;
 
             std::optional<nlohmann::json> result =
                     _options.callbacks->on_function_call(function_call_data);

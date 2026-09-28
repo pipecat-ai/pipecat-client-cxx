@@ -20,19 +20,23 @@ bot. Currently available transports:
 
 ## 📦 Dependencies
 
-### libcurl
-
-We use [libcurl](https://curl.se/libcurl/) to make HTTP requests.
+- [libcurl](https://curl.se/libcurl/) to make HTTP requests.
+- [nlohmann/json](https://github.com/nlohmann/json) 3.7 or newer. If it's not
+  installed, CMake downloads it.
 
 #### Linux
 
 ```bash
-sudo apt-get install libcurl4-openssl-dev
+sudo apt-get install libcurl4-openssl-dev nlohmann-json3-dev
 ```
 
 #### macOS
 
-On macOS `libcurl` is already included so there is nothing to install.
+On macOS `libcurl` is already included, so you only need `nlohmann/json`:
+
+```bash
+brew install nlohmann-json
+```
 
 #### Windows
 
@@ -40,9 +44,12 @@ On Windows we use [vcpkg](https://vcpkg.io/en/) to install dependencies. You
 need to set it up following one of the
 [tutorials](https://learn.microsoft.com/en-us/vcpkg/get_started/get-started).
 
-The `libcurl` dependency will be automatically downloaded when building.
+The dependencies will be automatically downloaded when building.
 
 ## 🛠️ Building
+
+You need a C++17 compiler (GCC 9 or newer, Clang, Apple Clang or MSVC) and
+CMake 3.16 or newer.
 
 ### Linux and macOS
 
@@ -68,9 +75,27 @@ cmake --build build --config Release
 
 ### Cross-compiling (Linux aarch64)
 
-It is possible to build the example for the `aarch64` architecture in Linux with:
+It is possible to build the library for the `aarch64` architecture in Linux
+with:
 
 ```bash
 cmake . -G Ninja -Bbuild -DCMAKE_TOOLCHAIN_FILE=aarch64-linux-toolchain.cmake -DCMAKE_BUILD_TYPE=Release
 ninja -C build
 ```
+
+## 📥 Installing
+
+```bash
+cmake --install build --prefix /path/to/pipecat
+```
+
+Then, in your CMake project, point `CMAKE_PREFIX_PATH` to that directory and
+use:
+
+```cmake
+find_package(pipecat 1.0 REQUIRED)
+target_link_libraries(my_app PRIVATE pipecat::pipecat)
+```
+
+You can also include this repository with `add_subdirectory()` or
+`FetchContent` and link to the same `pipecat::pipecat` target.

@@ -9,7 +9,7 @@
 #include "rtvi_helper.h"
 #include "rtvi_transport.h"
 
-#include "json.hpp"
+#include <nlohmann/json.hpp>
 
 #include <memory>
 #include <mutex>

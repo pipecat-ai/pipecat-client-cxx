@@ -7,7 +7,7 @@
 
 #include "rtvi_callbacks.h"
 
-#include "json.hpp"
+#include <nlohmann/json.hpp>
 
 namespace rtvi {
 
