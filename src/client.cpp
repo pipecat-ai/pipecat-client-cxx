@@ -131,6 +131,12 @@ class PipecatClient::Impl : public TransportObserver {
     );
     void disconnect_bot();
     void send_dtmf(const std::string& buttons);
+    void register_function_call_handler(
+            const std::string& function_name,
+            FunctionCallHandler handler
+    );
+    void unregister_function_call_handler(const std::string& function_name);
+    void unregister_all_function_call_handlers();
 
     // TransportObserver
     void on_transport_message(const json& message) override;
@@ -149,6 +155,13 @@ class PipecatClient::Impl : public TransportObserver {
     struct PendingRequest {
         std::chrono::steady_clock::time_point deadline;
         RequestCompletion complete;
+    };
+
+    // Lets function call responders, which apps may keep around, find out
+    // whether the client still exists.
+    struct Alive {
+        std::mutex mutex;
+        Impl* impl = nullptr;
     };
 
     // Queues a callback on the event loop. notify_locked() expects _mutex
@@ -215,6 +228,11 @@ class PipecatClient::Impl : public TransportObserver {
     // Fails requests that timed out. Runs on its own thread.
     void run_request_timer();
 
+    void run_function_call_handler(
+            const rtvi::LLMFunctionCallInProgressData& call
+    );
+    void send_function_call_result(const rtvi::LLMFunctionCallResultData& data);
+
     PipecatClientCallbacks* _callbacks;
     bool _disconnect_on_bot_disconnect;
     std::chrono::milliseconds _connect_timeout;
@@ -232,6 +250,7 @@ class PipecatClient::Impl : public TransportObserver {
     uint64_t _session = 0;
     std::optional<rtvi::BotReadyData> _bot_ready;
     std::map<std::string, PendingRequest> _requests;
+    std::map<std::string, FunctionCallHandler> _function_call_handlers;
     // start_bot() and connect() fail, and the request timer stops, once the
     // destructor runs.
     bool _destroying = false;
@@ -239,6 +258,8 @@ class PipecatClient::Impl : public TransportObserver {
     // Serializes transport initialize(), connect() and disconnect() calls.
     std::mutex _transport_mutex;
     bool _initialized = false;
+
+    std::shared_ptr<Alive> _alive = std::make_shared<Alive>();
 
     std::thread _request_timer;
     EventLoop _loop;
@@ -256,10 +277,15 @@ PipecatClient::Impl::Impl(PipecatClientOptions options)
     if (!_transport) {
         throw PipecatError("PipecatClientOptions::transport is required");
     }
+    _alive->impl = this;
     _request_timer = std::thread([this] { run_request_timer(); });
 }
 
 void PipecatClient::Impl::close() {
+    {
+        std::lock_guard<std::mutex> lock(_alive->mutex);
+        _alive->impl = nullptr;
+    }
     {
         std::lock_guard<std::mutex> lock(_mutex);
         _destroying = true;
@@ -679,6 +705,7 @@ void PipecatClient::Impl::handle_message(const rtvi::Message& message) {
     case MessageType::LLMFunctionCallInProgress: {
         // The deprecated llm-function-call parses as in-progress data.
         auto call = data.get<rtvi::LLMFunctionCallInProgressData>();
+        run_function_call_handler(call);
         notify([call](C& c) { c.on_llm_function_call_in_progress(call); });
         break;
     }
@@ -940,6 +967,90 @@ void PipecatClient::Impl::run_request_timer() {
 }
 
 //
+// Function calls
+//
+
+void PipecatClient::Impl::register_function_call_handler(
+        const std::string& function_name,
+        FunctionCallHandler handler
+) {
+    std::lock_guard<std::mutex> lock(_mutex);
+    _function_call_handlers[function_name] = std::move(handler);
+}
+
+void PipecatClient::Impl::unregister_function_call_handler(
+        const std::string& function_name
+) {
+    std::lock_guard<std::mutex> lock(_mutex);
+    _function_call_handlers.erase(function_name);
+}
+
+void PipecatClient::Impl::unregister_all_function_call_handlers() {
+    std::lock_guard<std::mutex> lock(_mutex);
+    _function_call_handlers.clear();
+}
+
+void PipecatClient::Impl::run_function_call_handler(
+        const rtvi::LLMFunctionCallInProgressData& call
+) {
+    // Handlers are matched by name, and the bot only sends it if it's
+    // configured to.
+    if (!call.function_name) {
+        return;
+    }
+
+    FunctionCallHandler handler;
+    {
+        std::lock_guard<std::mutex> lock(_mutex);
+        auto it = _function_call_handlers.find(*call.function_name);
+        if (it == _function_call_handlers.end()) {
+            return;
+        }
+        handler = it->second;
+    }
+
+    FunctionCallParams params;
+    params.function_name = *call.function_name;
+    params.arguments = call.arguments;
+
+    auto responded = std::make_shared<std::atomic<bool>>(false);
+    FunctionCallResultCallback respond = [alive = _alive,
+                                          responded,
+                                          call](json result) {
+        if (responded->exchange(true)) {
+            return;
+        }
+        rtvi::LLMFunctionCallResultData data;
+        data.function_name = *call.function_name;
+        data.tool_call_id = call.tool_call_id;
+        data.arguments = call.arguments;
+        data.result = result.is_null() ? json::object() : std::move(result);
+
+        std::lock_guard<std::mutex> lock(alive->mutex);
+        if (alive->impl != nullptr) {
+            alive->impl->send_function_call_result(data);
+        }
+    };
+
+    _loop.post([handler, params, respond] { handler(params, respond); });
+}
+
+void PipecatClient::Impl::send_function_call_result(
+        const rtvi::LLMFunctionCallResultData& data
+) {
+    try {
+        send(rtvi::Message::llm_function_call_result(data));
+    } catch (const BotNotReadyError&) {
+        // The bot is gone, so nobody is waiting for the result.
+    } catch (const std::exception& e) {
+        report_error(
+                std::string("Unable to send function call result: ") + e.what(),
+                false
+        );
+    }
+}
+
+//
 // Helpers
 //
 
@@ -1085,6 +1196,23 @@ void PipecatClient::disconnect_bot() {
 
 void PipecatClient::send_dtmf(const std::string& buttons) {
     _impl->send_dtmf(buttons);
+}
+
+void PipecatClient::register_function_call_handler(
+        const std::string& function_name,
+        FunctionCallHandler handler
+) {
+    _impl->register_function_call_handler(function_name, std::move(handler));
+}
+
+void PipecatClient::unregister_function_call_handler(
+        const std::string& function_name
+) {
+    _impl->unregister_function_call_handler(function_name);
+}
+
+void PipecatClient::unregister_all_function_call_handlers() {
+    _impl->unregister_all_function_call_handlers();
 }
 
 }  // namespace pipecat

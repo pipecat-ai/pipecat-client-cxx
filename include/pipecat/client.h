@@ -121,6 +121,24 @@ struct ClientResponse {
 
 using ClientResponseCallback = std::function<void(const ClientResponse&)>;
 
+// An LLM function call the bot wants the client to handle.
+struct FunctionCallParams {
+    std::string function_name;
+    nlohmann::json arguments;
+};
+
+// Sends the result of a function call to the bot. Can be called from any
+// thread, now or later, but only once. Ignored once the bot is no longer
+// ready or the client is destroyed. A null result is sent as an empty object.
+using FunctionCallResultCallback = std::function<void(nlohmann::json result)>;
+
+// Handles a function call and calls `respond` with the result, right away or
+// later (e.g. once a slow operation finishes). Not calling it sends no
+// result. Runs on the client's event thread, like the callbacks.
+using FunctionCallHandler = std::function<
+        void(const FunctionCallParams& params,
+             FunctionCallResultCallback respond)>;
+
 struct PipecatClientOptions {
     // Required.
     std::unique_ptr<Transport> transport;
@@ -228,6 +246,17 @@ class PipecatClient {
     // PipecatError for other characters and UnsupportedFeatureError if the
     // bot is older than RTVI protocol 2.0.0.
     void send_dtmf(const std::string& buttons);
+
+    // Handles LLM function calls named `function_name`, replacing any previous
+    // handler for it.
+    void register_function_call_handler(
+            const std::string& function_name,
+            FunctionCallHandler handler
+    );
+
+    void unregister_function_call_handler(const std::string& function_name);
+
+    void unregister_all_function_call_handlers();
 
    private:
     class Impl;

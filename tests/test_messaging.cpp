@@ -344,3 +344,163 @@ TEST(DTMF, RejectsInvalidKeys) {
     EXPECT_THROW(client->send_dtmf(""), PipecatError);
     EXPECT_TRUE(transport->sent_messages("dtmf").empty());
 }
+
+//
+// Function calls
+//
+
+namespace {
+
+json function_call(
+        const std::string& function_name,
+        const std::string& tool_call_id
+) {
+    json data = {
+            {"tool_call_id", tool_call_id},
+            {"arguments", {{"city", "SF"}}},
+    };
+    if (!function_name.empty()) {
+        data["function_name"] = function_name;
+    }
+    return rtvi_message("llm-function-call-in-progress", data);
+}
+
+// Waits until the event thread handled everything delivered so far.
+void flush(FakeTransport* transport, Recorder& recorder) {
+    static int marker = 0;
+    std::string type = "flush-" + std::to_string(++marker);
+    transport->deliver_message(rtvi_message(type));
+    ASSERT_TRUE(recorder.wait_for("unhandled:" + type));
+}
+
+}  // namespace
+
+TEST(FunctionCall, HandlerResponds) {
+    Recorder recorder;
+    auto [transport, client] = make_client(recorder);
+    std::promise<std::pair<FunctionCallParams, std::thread::id>> called;
+    client->register_function_call_handler(
+            "get_weather",
+            [&](const FunctionCallParams& params,
+                FunctionCallResultCallback respond) {
+                called.set_value({params, std::this_thread::get_id()});
+                respond({{"temperature", 20}});
+            }
+    );
+    client->connect();
+
+    transport->deliver_message(function_call("get_weather", "call_1"));
+
+    ASSERT_TRUE(transport->wait_for_sent("llm-function-call-result"));
+    EXPECT_EQ(
+            transport->sent_messages("llm-function-call-result")[0].data,
+            json::parse(R"({
+                "function_name": "get_weather",
+                "tool_call_id": "call_1",
+                "arguments": {"city": "SF"},
+                "result": {"temperature": 20}
+            })")
+    );
+    auto [params, thread] = called.get_future().get();
+    EXPECT_EQ(params.function_name, "get_weather");
+    EXPECT_EQ(params.arguments, json({{"city", "SF"}}));
+    EXPECT_NE(thread, std::this_thread::get_id());
+    // The in-progress callback still runs.
+    ASSERT_TRUE(recorder.wait_for(
+            R"(function-call-in-progress:get_weather:{"city":"SF"})"
+    ));
+}
+
+TEST(FunctionCall, HandlerRespondsLater) {
+    Recorder recorder;
+    auto [transport, client] = make_client(recorder);
+    std::promise<FunctionCallResultCallback> called;
+    client->register_function_call_handler(
+            "get_weather",
+            [&](const FunctionCallParams&, FunctionCallResultCallback respond) {
+                called.set_value(respond);
+            }
+    );
+    client->connect();
+    transport->deliver_message(function_call("get_weather", "call_1"));
+
+    auto respond = called.get_future().get();
+    std::thread([respond] { respond(nullptr); }).join();
+    // Only the first answer counts.
+    respond({{"ignored", true}});
+
+    ASSERT_TRUE(transport->wait_for_sent("llm-function-call-result"));
+    flush(transport, recorder);
+    auto sent = transport->sent_messages("llm-function-call-result");
+    ASSERT_EQ(sent.size(), 1u);
+    EXPECT_EQ(sent[0].data["result"], json::object());
+}
+
+TEST(FunctionCall, OnlyMatchingHandlerRuns) {
+    Recorder recorder;
+    auto [transport, client] = make_client(recorder);
+    int calls = 0;
+    client->register_function_call_handler(
+            "get_weather",
+            [&](const FunctionCallParams&, FunctionCallResultCallback) {
+                calls++;
+            }
+    );
+    client->connect();
+
+    transport->deliver_message(function_call("get_time", "call_1"));
+    // Without a name, it can't be matched to a handler.
+    transport->deliver_message(function_call("", "call_2"));
+    flush(transport, recorder);
+    EXPECT_EQ(calls, 0);
+
+    client->unregister_function_call_handler("get_weather");
+    transport->deliver_message(function_call("get_weather", "call_3"));
+    flush(transport, recorder);
+    EXPECT_EQ(calls, 0);
+}
+
+TEST(FunctionCall, DeprecatedFunctionCallRunsHandler) {
+    Recorder recorder;
+    auto [transport, client] = make_client(recorder);
+    client->register_function_call_handler(
+            "get_weather",
+            [](const FunctionCallParams& params,
+               FunctionCallResultCallback respond) {
+                respond(params.arguments);
+            }
+    );
+    client->connect();
+
+    transport->deliver_message(rtvi_message(
+            "llm-function-call",
+            {{"function_name", "get_weather"},
+             {"tool_call_id", "call_1"},
+             {"args", {{"city", "SF"}}}}
+    ));
+
+    ASSERT_TRUE(transport->wait_for_sent("llm-function-call-result"));
+    auto sent = transport->sent_messages("llm-function-call-result");
+    EXPECT_EQ(sent[0].data["arguments"], json({{"city", "SF"}}));
+    EXPECT_EQ(sent[0].data["result"], json({{"city", "SF"}}));
+}
+
+TEST(FunctionCall, RespondAfterClientIsDestroyed) {
+    Recorder recorder;
+    auto [transport, client] = make_client(recorder);
+    std::promise<FunctionCallResultCallback> called;
+    client->register_function_call_handler(
+            "get_weather",
+            [&](const FunctionCallParams&, FunctionCallResultCallback respond) {
+                called.set_value(respond);
+            }
+    );
+    client->connect();
+    transport->deliver_message(function_call("get_weather", "call_1"));
+    auto respond = called.get_future().get();
+
+    client.reset();
+
+    // Ignored, and doesn't touch the destroyed client.
+    respond({{"temperature", 20}});
+}
