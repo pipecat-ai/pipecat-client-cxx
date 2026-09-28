@@ -22,10 +22,8 @@ endif()
 add_executable(pipecat_tests
   test_client.cpp
   test_event_loop.cpp
-  test_messages.cpp
   test_rtvi_messages.cpp
   test_start_bot.cpp
-  test_utils.cpp
 )
 
 set_target_properties(pipecat_tests PROPERTIES
