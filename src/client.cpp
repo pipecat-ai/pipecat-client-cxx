@@ -844,19 +844,13 @@ void PipecatClient::Impl::send_dtmf(const std::string& buttons) {
         version = parse_version(_bot_ready->version);
     }
 
-    if (version[0] < 2) {
+    if (version[0] < 2 || (version[0] == 2 && version[1] < 1)) {
         throw UnsupportedFeatureError(
-                "DTMF", "the bot needs RTVI protocol 2.0.0 or newer"
+                "DTMF", "the bot needs RTVI 2.1 or newer"
         );
     }
-    if (version[0] == 2 && version[1] < 1) {
-        // Protocol 2.0 bots take one key per message.
-        for (char button: buttons) {
-            send(rtvi::Message::dtmf_button(button));
-        }
-    } else {
-        send(rtvi::Message::dtmf(buttons));
-    }
+
+    send(rtvi::Message::dtmf(buttons));
 }
 
 //

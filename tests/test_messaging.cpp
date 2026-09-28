@@ -311,28 +311,17 @@ TEST(DTMF, SendsAllKeysInOneMessage) {
     EXPECT_EQ(sent[0].data, json::parse(R"({"buttons": ["1", "2", "#"]})"));
 }
 
-TEST(DTMF, SendsOneKeyPerMessageToProtocol2_0Bots) {
-    Recorder recorder;
-    auto [transport, client] = make_client(recorder);
-    transport->bot_version = "2.0.0";
-    client->connect();
-
-    client->send_dtmf("1*");
-
-    auto sent = transport->sent_messages("dtmf");
-    ASSERT_EQ(sent.size(), 2u);
-    EXPECT_EQ(sent[0].data, json::parse(R"({"button": "1"})"));
-    EXPECT_EQ(sent[1].data, json::parse(R"({"button": "*"})"));
-}
-
 TEST(DTMF, UnsupportedByOlderBots) {
-    Recorder recorder;
-    auto [transport, client] = make_client(recorder);
-    transport->bot_version = "1.4.0";
-    client->connect();
+    for (const char* version: {"2.0.0", "1.4.0"}) {
+        Recorder recorder;
+        auto [transport, client] = make_client(recorder);
+        transport->bot_version = version;
+        client->connect();
 
-    EXPECT_THROW(client->send_dtmf("1"), UnsupportedFeatureError);
-    EXPECT_TRUE(transport->sent_messages("dtmf").empty());
+        EXPECT_THROW(client->send_dtmf("1"), UnsupportedFeatureError)
+                << version;
+        EXPECT_TRUE(transport->sent_messages("dtmf").empty());
+    }
 }
 
 TEST(DTMF, RejectsInvalidKeys) {

@@ -245,9 +245,6 @@ struct Message {
     // One or more DTMF keys (0-9, * and #), in order. Needs protocol 2.1.0+.
     static Message dtmf(const std::string& buttons);
 
-    // A single DTMF key, for bots on protocol 2.0.x.
-    static Message dtmf_button(char button);
-
     static Message llm_function_call_result(
             const LLMFunctionCallResultData& data
     );

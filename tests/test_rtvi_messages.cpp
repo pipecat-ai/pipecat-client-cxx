@@ -180,10 +180,6 @@ TEST(Message, DTMF) {
     auto message = Message::dtmf("12#");
     EXPECT_EQ(message.type, "dtmf");
     EXPECT_EQ(message.data, json::parse(R"({"buttons": ["1", "2", "#"]})"));
-
-    EXPECT_EQ(
-            Message::dtmf_button('*').data, json::parse(R"({"button": "*"})")
-    );
 }
 
 TEST(Message, LLMFunctionCallResult) {

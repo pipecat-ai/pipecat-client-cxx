@@ -196,10 +196,6 @@ Message Message::dtmf(const std::string& buttons) {
     return Message(MessageType::DTMF, {{"buttons", array}});
 }
 
-Message Message::dtmf_button(char button) {
-    return Message(MessageType::DTMF, {{"button", std::string(1, button)}});
-}
-
 Message Message::llm_function_call_result(const LLMFunctionCallResultData& data
 ) {
     return Message(MessageType::LLMFunctionCallResult, data);

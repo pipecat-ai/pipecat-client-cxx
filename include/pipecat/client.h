@@ -244,7 +244,7 @@ class PipecatClient {
 
     // Sends one or more DTMF keys (0-9, * and #), e.g. "123#". Throws
     // PipecatError for other characters and UnsupportedFeatureError if the
-    // bot is older than RTVI protocol 2.0.0.
+    // bot is older than RTVI protocol 2.1.0.
     void send_dtmf(const std::string& buttons);
 
     // Handles LLM function calls named `function_name`, replacing any previous
