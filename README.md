@@ -105,7 +105,7 @@ auto weather = client.send_client_request("get-weather", {{"city", "SF"}}).get()
 ## 📚 Documentation
 
 - Guides: [docs.pipecat.ai](https://docs.pipecat.ai)
-- API reference: [pipecat-ai.github.io/pipecat-client-cxx](https://pipecat-ai.github.io/pipecat-client-cxx)
+- API reference: [docs-cxx.pipecat.ai](https://docs-cxx.pipecat.ai)
 - Changes and migration from 0.x: [CHANGELOG.md](CHANGELOG.md)
 
 ## 🛠️ Building
