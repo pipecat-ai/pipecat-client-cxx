@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2024, Daily
+// Copyright (c) 2024-2026, Daily
 //
 
 #ifndef RTVI_H
