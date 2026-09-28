@@ -47,11 +47,12 @@ jobs:
         run: |
           sudo apt-get update
           sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-            cmake g++ libcurl4-openssl-dev ninja-build nlohmann-json3-dev unzip ${{ matrix.packages }}
+            cmake g++ libcurl4-openssl-dev ninja-build nlohmann-json3-dev pkg-config \
+            portaudio19-dev unzip ${{ matrix.packages }}
 
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
-        run: brew install nlohmann-json ninja
+        run: brew install nlohmann-json ninja pkgconf portaudio
 
       - uses: actions/checkout@v7
 
@@ -105,6 +106,16 @@ jobs:
             -DCMAKE_PREFIX_PATH="$PWD/install;$PWD/pipecat"
           cmake --build build-package
           ./build-package/package_test
+
+      - name: Build the examples
+        run: |
+          for example in text voice; do
+            cmake -S "examples/$example" -B "build-$example" -G Ninja \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
+              -DCMAKE_PREFIX_PATH="$PWD/install;$PWD/pipecat"
+            cmake --build "build-$example"
+          done
 
   windows:
     name: Windows x86_64 (MSVC)
