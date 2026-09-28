@@ -86,6 +86,41 @@ jobs:
           ninja -C build-meson
           ./build-meson/package_test
 
+  tsan:
+    name: Linux x86_64 (Clang, ThreadSanitizer)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            clang cmake ninja-build libcurl4-openssl-dev nlohmann-json3-dev
+
+      # ThreadSanitizer in Clang 18 fails to start with the runner's default
+      # address space randomization.
+      - name: Reduce address space randomization
+        run: sudo sysctl vm.mmap_rnd_bits=28
+
+      - uses: actions/checkout@v5
+
+      - name: Configure
+        run: >
+          cmake -S . -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          -DCMAKE_CXX_COMPILER=clang++
+          "-DCMAKE_CXX_FLAGS=-fsanitize=thread -fno-omit-frame-pointer"
+          -DCMAKE_EXE_LINKER_FLAGS=-fsanitize=thread
+          -DPIPECAT_WARNINGS_AS_ERRORS=ON
+
+      - name: Build
+        run: cmake --build build
+
+      # Run the tests several times, since races don't show up every time.
+      - name: Test
+        env:
+          TSAN_OPTIONS: halt_on_error=1
+        run: ./build/tests/pipecat_tests --gtest_repeat=5 --gtest_brief=1
+
   windows:
     name: Windows x86_64 (MSVC)
     runs-on: windows-latest
