@@ -2,13 +2,27 @@
 
 - [text](text): chat with a bot in the terminal. Type a message and the bot
   answers in text. No audio devices needed.
+- [voice](voice): talk with a bot using your microphone and speakers, with
+  [PortAudio](https://www.portaudio.com). It also answers the bot's
+  `get_current_time` function calls, if the bot asks the client to run them.
 
 ## Building
 
 First build and install the Pipecat C++ client and this transport, following
 the main [README](../README.md).
 
-Then, from this directory, build the example:
+The voice example also needs PortAudio:
+
+```bash
+# Linux
+sudo apt-get install portaudio19-dev pkg-config
+
+# macOS
+brew install portaudio pkgconf
+```
+
+Then, from this directory, build an example in its own build directory. For
+the text example:
 
 ```bash
 cmake -S text -B build-text -G Ninja -DCMAKE_BUILD_TYPE=Release \
@@ -17,7 +31,9 @@ cmake -S text -B build-text -G Ninja -DCMAKE_BUILD_TYPE=Release \
 ninja -C build-text
 ```
 
-On Windows, the example gets its dependencies from
+For the voice example, replace `text` with `voice`.
+
+On Windows, the examples get their dependencies from
 [vcpkg](https://vcpkg.io/en/):
 
 ```bash
@@ -27,14 +43,15 @@ cmake --build build-text --config Release
 
 ## Running
 
-The example starts a bot through its start endpoint, then connect to it. Pass
+The examples start a bot through its start endpoint, then connect to it. Pass
 the endpoint's URL:
 
 ```bash
 ./build-text/text_chat http://localhost:7860/start
+./build-voice/voice_chat http://localhost:7860/start
 ```
 
-On Windows, it's in `build-text\Release`.
+On Windows, they're in `build-text\Release` and `build-voice\Release`.
 
 To run a bot on your machine, start any Pipecat bot that supports Daily with
 the development runner, e.g. `python bot.py -t daily`. Its start endpoint is
