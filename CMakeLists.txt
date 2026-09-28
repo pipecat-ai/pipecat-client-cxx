@@ -175,3 +175,11 @@ if(PIPECAT_INSTALL)
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
   )
 endif()
+
+#
+# Tests
+#
+if(PIPECAT_BUILD_TESTS)
+  enable_testing()
+  add_subdirectory(tests)
+endif()

@@ -83,6 +83,16 @@ cmake . -G Ninja -Bbuild -DCMAKE_TOOLCHAIN_FILE=aarch64-linux-toolchain.cmake -D
 ninja -C build
 ```
 
+## 🧪 Testing
+
+Unit tests use [GoogleTest](https://github.com/google/googletest), which is
+downloaded if it's not installed. They are built by default, and you can
+disable them with `-DPIPECAT_BUILD_TESTS=OFF`.
+
+```bash
+cd build && ctest --output-on-failure
+```
+
 ## 📥 Installing
 
 ```bash
