@@ -58,12 +58,15 @@ endif()
 # Library
 #
 add_library(pipecat STATIC
+  src/client.cpp
   src/event_loop.cpp
+  src/http.cpp
   src/rtvi/about.cpp
   src/rtvi/messages.cpp
   src/rtvi_client.cpp
   src/rtvi_llm_helper.cpp
   src/rtvi_utils.cpp
+  src/transport.cpp
 )
 add_library(pipecat::pipecat ALIAS pipecat)
 
