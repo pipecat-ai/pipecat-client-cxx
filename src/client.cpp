@@ -676,6 +676,9 @@ void PipecatClient::Impl::handle_message(const rtvi::Message& message) {
     case MessageType::BotStoppedSpeaking:
         notify_event(&C::on_bot_stopped_speaking);
         break;
+    case MessageType::BotInterrupted:
+        notify_event(&C::on_bot_interrupted);
+        break;
     case MessageType::UserMuteStarted:
         notify_event(&C::on_user_mute_started);
         break;

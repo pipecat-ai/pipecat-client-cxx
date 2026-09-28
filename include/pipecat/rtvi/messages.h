@@ -55,6 +55,7 @@ enum class MessageType {
     UserStoppedSpeaking,        ///< The user stopped speaking.
     BotStartedSpeaking,         ///< The bot started speaking.
     BotStoppedSpeaking,         ///< The bot stopped speaking.
+    BotInterrupted,             ///< The bot was interrupted.
     UserMuteStarted,            ///< The bot started ignoring user audio.
     UserMuteStopped,            ///< The bot stopped ignoring user audio.
     UserTranscription,          ///< What the user said.

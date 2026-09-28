@@ -441,6 +441,7 @@ TEST(PipecatClient, DispatchesMessages) {
             ),
             rtvi_message("bot-tts-stopped"),
             rtvi_message("bot-stopped-speaking"),
+            rtvi_message("bot-interrupted"),
             rtvi_message(
                     "metrics",
                     {{"ttfb", {{{"processor", "llm"}, {"value", 0.2}}}}}
@@ -498,6 +499,7 @@ TEST(PipecatClient, DispatchesMessages) {
                     "bot-output:Hello:sentence",
                     "bot-tts-stopped",
                     "bot-stopped-speaking",
+                    "bot-interrupted",
                     "metrics:1",
                     R"(server-message:{"score":10})",
                     "error:Boom:fatal",

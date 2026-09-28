@@ -102,6 +102,8 @@ const char* to_string(MessageType type) {
         return "bot-started-speaking";
     case MessageType::BotStoppedSpeaking:
         return "bot-stopped-speaking";
+    case MessageType::BotInterrupted:
+        return "bot-interrupted";
     case MessageType::UserMuteStarted:
         return "user-mute-started";
     case MessageType::UserMuteStopped:

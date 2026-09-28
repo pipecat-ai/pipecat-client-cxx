@@ -112,6 +112,10 @@ class PipecatClientCallbacks {
     /// The bot stopped speaking.
     virtual void on_bot_stopped_speaking() {}
 
+    /// The bot was interrupted, e.g. because the user spoke over it. Drop any
+    /// bot audio you haven't played yet.
+    virtual void on_bot_interrupted() {}
+
     /// The bot started ignoring user audio, e.g. while it speaks. Keep sending
     /// audio as usual.
     virtual void on_user_mute_started() {}

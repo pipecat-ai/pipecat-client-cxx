@@ -130,6 +130,7 @@ class Recorder : public pipecat::PipecatClientCallbacks {
     }
     void on_bot_started_speaking() override { record("bot-started-speaking"); }
     void on_bot_stopped_speaking() override { record("bot-stopped-speaking"); }
+    void on_bot_interrupted() override { record("bot-interrupted"); }
     void on_user_mute_started() override { record("user-mute-started"); }
     void on_user_mute_stopped() override { record("user-mute-stopped"); }
 

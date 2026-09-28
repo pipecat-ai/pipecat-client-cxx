@@ -24,8 +24,9 @@ were never tagged (0.x), see [Migrating from 0.x](#migrating-from-0x).
   - `state()` and `on_transport_state_changed()` follow the connection through
     the same states as client-js.
 - `PipecatClientCallbacks`, with typed callbacks for every current server
-  message: bot output, transcriptions, LLM and TTS events, metrics,
-  function calls, search responses, user mute, server messages and errors.
+  message: bot output, transcriptions, interruptions, LLM and TTS events,
+  metrics, function calls, search responses, user mute, server messages and
+  errors.
   Callbacks run on the client's own event thread, one at a time and in order.
 - Messages to the bot: `send_text()`, `send_client_message()`,
   `send_client_request()` (with a callback or a `std::future`, and a timeout),

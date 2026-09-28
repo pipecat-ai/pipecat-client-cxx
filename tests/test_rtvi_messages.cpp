@@ -37,6 +37,7 @@ TEST(MessageType, RoundTripsAllTypes) {
             {MessageType::UserStoppedSpeaking, "user-stopped-speaking"},
             {MessageType::BotStartedSpeaking, "bot-started-speaking"},
             {MessageType::BotStoppedSpeaking, "bot-stopped-speaking"},
+            {MessageType::BotInterrupted, "bot-interrupted"},
             {MessageType::UserMuteStarted, "user-mute-started"},
             {MessageType::UserMuteStopped, "user-mute-stopped"},
             {MessageType::UserTranscription, "user-transcription"},
