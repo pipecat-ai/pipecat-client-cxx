@@ -32,6 +32,7 @@ include(GNUInstallDirs)
 # Dependencies
 #
 find_package(CURL REQUIRED)
+find_package(Threads REQUIRED)
 
 # Prefer an installed nlohmann_json (apt, Homebrew, vcpkg, Yocto...) and fall
 # back to downloading it.
@@ -57,6 +58,7 @@ endif()
 # Library
 #
 add_library(pipecat STATIC
+  src/event_loop.cpp
   src/rtvi/about.cpp
   src/rtvi/messages.cpp
   src/rtvi_client.cpp
@@ -85,7 +87,7 @@ target_include_directories(pipecat PUBLIC
 
 target_link_libraries(pipecat
   PUBLIC nlohmann_json::nlohmann_json
-  PRIVATE CURL::libcurl
+  PRIVATE CURL::libcurl Threads::Threads
 )
 
 if(MSVC)
@@ -165,6 +167,9 @@ if(PIPECAT_INSTALL)
   endif()
   if(PIPECAT_PC_JSON_FOUND)
     list(APPEND PIPECAT_PC_REQUIRES "nlohmann_json >= 3.7")
+  endif()
+  if(CMAKE_THREAD_LIBS_INIT)
+    string(APPEND PIPECAT_PC_LIBS_EXTRA " ${CMAKE_THREAD_LIBS_INIT}")
   endif()
   string(REPLACE ";" ", " PIPECAT_PC_REQUIRES "${PIPECAT_PC_REQUIRES}")
 

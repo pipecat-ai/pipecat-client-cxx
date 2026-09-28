@@ -20,6 +20,7 @@ if(NOT GTest_FOUND)
 endif()
 
 add_executable(pipecat_tests
+  test_event_loop.cpp
   test_messages.cpp
   test_rtvi_messages.cpp
   test_utils.cpp
@@ -31,7 +32,14 @@ set_target_properties(pipecat_tests PROPERTIES
   CXX_EXTENSIONS OFF
 )
 
-target_link_libraries(pipecat_tests PRIVATE pipecat::pipecat GTest::gtest_main)
+# Tests also cover private code in src/.
+target_include_directories(pipecat_tests PRIVATE ${PROJECT_SOURCE_DIR}/src)
+
+target_link_libraries(pipecat_tests PRIVATE
+  pipecat::pipecat
+  GTest::gtest_main
+  Threads::Threads
+)
 
 include(GoogleTest)
 gtest_discover_tests(pipecat_tests)
