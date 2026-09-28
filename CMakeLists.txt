@@ -135,4 +135,43 @@ if(PIPECAT_INSTALL)
     ${CMAKE_CURRENT_BINARY_DIR}/pipecatConfigVersion.cmake
     DESTINATION ${PIPECAT_CMAKE_DIR}
   )
+
+  # pkg-config file (for Meson and others). It's generated at install time so
+  # the prefix given to `cmake --install --prefix` is used.
+  #
+  # Dependencies only go in Requires if they have a pkg-config file: macOS
+  # ships libcurl without one, and nlohmann_json only has one since 3.9. Without
+  # it, nlohmann_json is either in a system include path or was downloaded and
+  # installed next to our headers.
+  find_package(PkgConfig QUIET)
+  if(PKG_CONFIG_FOUND)
+    pkg_check_modules(PIPECAT_PC_CURL QUIET libcurl)
+    pkg_check_modules(PIPECAT_PC_JSON QUIET nlohmann_json)
+  endif()
+  set(PIPECAT_PC_REQUIRES "")
+  set(PIPECAT_PC_LIBS_EXTRA "")
+  if(PIPECAT_PC_CURL_FOUND)
+    list(APPEND PIPECAT_PC_REQUIRES "libcurl")
+  else()
+    set(PIPECAT_PC_LIBS_EXTRA " -lcurl")
+  endif()
+  if(PIPECAT_PC_JSON_FOUND)
+    list(APPEND PIPECAT_PC_REQUIRES "nlohmann_json >= 3.7")
+  endif()
+  string(REPLACE ";" ", " PIPECAT_PC_REQUIRES "${PIPECAT_PC_REQUIRES}")
+
+  install(CODE "
+    set(PIPECAT_PC_TEMPLATE \"${CMAKE_CURRENT_SOURCE_DIR}/cmake/pipecat.pc.in\")
+    set(PIPECAT_PC_OUTPUT \"${CMAKE_CURRENT_BINARY_DIR}/pipecat.pc\")
+    set(PIPECAT_PC_VERSION \"${PROJECT_VERSION}\")
+    set(PIPECAT_PC_LIBDIR \"${CMAKE_INSTALL_LIBDIR}\")
+    set(PIPECAT_PC_INCLUDEDIR \"${CMAKE_INSTALL_INCLUDEDIR}\")
+    set(PIPECAT_PC_LIBNAME \"$<TARGET_FILE_BASE_NAME:pipecat>\")
+    set(PIPECAT_PC_REQUIRES \"${PIPECAT_PC_REQUIRES}\")
+    set(PIPECAT_PC_LIBS_EXTRA \"${PIPECAT_PC_LIBS_EXTRA}\")
+  ")
+  install(SCRIPT cmake/pipecatPkgConfig.cmake)
+  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/pipecat.pc
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
+  )
 endif()

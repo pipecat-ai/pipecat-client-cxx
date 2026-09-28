@@ -1,0 +1,11 @@
+prefix=@PIPECAT_PC_PREFIX@
+libdir=@PIPECAT_PC_LIBDIR@
+includedir=@PIPECAT_PC_INCLUDEDIR@
+
+Name: pipecat
+Description: Pipecat C++ client SDK
+URL: https://github.com/pipecat-ai/pipecat-client-cxx
+Version: @PIPECAT_PC_VERSION@
+Requires: @PIPECAT_PC_REQUIRES@
+Libs: -L${libdir} -l@PIPECAT_PC_LIBNAME@@PIPECAT_PC_LIBS_EXTRA@
+Cflags: -I${includedir}

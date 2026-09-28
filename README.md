@@ -99,3 +99,13 @@ target_link_libraries(my_app PRIVATE pipecat::pipecat)
 
 You can also include this repository with `add_subdirectory()` or
 `FetchContent` and link to the same `pipecat::pipecat` target.
+
+A `pipecat.pc` file is also installed for Meson and other build systems that
+use pkg-config. Add `/path/to/pipecat/lib/pkgconfig` to `PKG_CONFIG_PATH` and
+use:
+
+```meson
+pipecat_dep = dependency('pipecat', version: '>= 1.0')
+```
+
+Meson projects need `cpp_std=c++17` or newer.
