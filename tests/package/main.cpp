@@ -4,9 +4,15 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-#include "rtvi.h"
+#include <pipecat/pipecat.h>
+
+#include <string>
 
 int main() {
-    auto message = rtvi::RTVIMessage::client_ready();
-    return message["type"] == "client-ready" ? 0 : 1;
+    using namespace pipecat::rtvi;
+
+    auto message = Message::client_ready(default_about_client());
+    bool ok = message.type == "client-ready" &&
+              message.data["about"]["library_version"] == PIPECAT_VERSION;
+    return ok ? 0 : 1;
 }

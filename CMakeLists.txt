@@ -57,6 +57,8 @@ endif()
 # Library
 #
 add_library(pipecat STATIC
+  src/rtvi/about.cpp
+  src/rtvi/messages.cpp
   src/rtvi_client.cpp
   src/rtvi_llm_helper.cpp
   src/rtvi_utils.cpp

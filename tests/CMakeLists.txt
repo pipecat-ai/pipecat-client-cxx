@@ -21,6 +21,7 @@ endif()
 
 add_executable(pipecat_tests
   test_messages.cpp
+  test_rtvi_messages.cpp
   test_utils.cpp
 )
 
