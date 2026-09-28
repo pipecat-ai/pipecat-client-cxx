@@ -51,7 +51,7 @@ jobs:
         if: runner.os == 'macOS'
         run: brew install meson nlohmann-json ninja pkgconf
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Configure
         run: >
@@ -101,7 +101,7 @@ jobs:
       - name: Reduce address space randomization
         run: sudo sysctl vm.mmap_rnd_bits=28
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Configure
         run: >
@@ -125,7 +125,7 @@ jobs:
     name: Windows x86_64 (MSVC)
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Configure
         run: |
