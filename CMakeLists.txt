@@ -73,8 +73,11 @@ set_target_properties(pipecat PROPERTIES
   DEBUG_POSTFIX d
 )
 
+configure_file(cmake/version.h.in include/pipecat/version.h @ONLY)
+
 target_include_directories(pipecat PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
@@ -115,6 +118,9 @@ if(PIPECAT_INSTALL)
   )
 
   install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/pipecat/version.h
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/pipecat
+  )
 
   install(EXPORT pipecatTargets
     NAMESPACE pipecat::
