@@ -460,31 +460,6 @@ TEST(FunctionCall, OnlyMatchingHandlerRuns) {
     EXPECT_EQ(calls, 0);
 }
 
-TEST(FunctionCall, DeprecatedFunctionCallRunsHandler) {
-    Recorder recorder;
-    auto [transport, client] = make_client(recorder);
-    client->register_function_call_handler(
-            "get_weather",
-            [](const FunctionCallParams& params,
-               FunctionCallResultCallback respond) {
-                respond(params.arguments);
-            }
-    );
-    client->connect();
-
-    transport->deliver_message(rtvi_message(
-            "llm-function-call",
-            {{"function_name", "get_weather"},
-             {"tool_call_id", "call_1"},
-             {"args", {{"city", "SF"}}}}
-    ));
-
-    ASSERT_TRUE(transport->wait_for_sent("llm-function-call-result"));
-    auto sent = transport->sent_messages("llm-function-call-result");
-    EXPECT_EQ(sent[0].data["arguments"], json({{"city", "SF"}}));
-    EXPECT_EQ(sent[0].data["result"], json({{"city", "SF"}}));
-}
-
 TEST(FunctionCall, RespondAfterClientIsDestroyed) {
     Recorder recorder;
     auto [transport, client] = make_client(recorder);

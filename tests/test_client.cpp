@@ -448,17 +448,12 @@ TEST(PipecatClient, DispatchesMessages) {
                     {{"tool_call_id", "call_1"}, {"cancelled", false}}
             ),
             rtvi_message(
-                    "llm-function-call",
-                    {{"function_name", "get_time"},
-                     {"tool_call_id", "call_2"},
-                     {"args", {{"zone", "UTC"}}}}
-            ),
-            rtvi_message(
                     "bot-llm-search-response",
                     {{"search_result", "Sunny"}, {"origins", json::array()}}
             ),
             rtvi_message("bot-transcription", {{"text", "Ignored"}}),
             rtvi_message("ui-command", {{"command", "click"}}),
+            rtvi_message("llm-function-call", {{"function_name", "get_time"}}),
             {{"label", "other"}, {"type", "bot-output"}},
             rtvi_message("server-message", {{"done", true}}),
     };
@@ -495,9 +490,9 @@ TEST(PipecatClient, DispatchesMessages) {
                     "function-call-started:get_weather",
                     R"(function-call-in-progress:get_weather:{"city":"SF"})",
                     "function-call-stopped:call_1",
-                    R"(function-call-in-progress:get_time:{"zone":"UTC"})",
                     "bot-llm-search-response:Sunny",
                     "unhandled:ui-command",
+                    "unhandled:llm-function-call",
                     R"(server-message:{"done":true})",
             })
     );

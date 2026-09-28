@@ -53,7 +53,6 @@ enum class MessageType {
     UserTranscription,
     UserLLMText,
     BotOutput,
-    BotTranscription,  // Deprecated, use BotOutput.
     BotLLMText,
     BotLLMStarted,
     BotLLMStopped,
@@ -61,7 +60,6 @@ enum class MessageType {
     BotTTSText,
     BotTTSStarted,
     BotTTSStopped,
-    LLMFunctionCall,  // Deprecated, use LLMFunctionCallInProgress.
     LLMFunctionCallStarted,
     LLMFunctionCallInProgress,
     LLMFunctionCallStopped,
@@ -142,7 +140,6 @@ struct TextData {
 using UserLLMTextData = TextData;
 using BotLLMTextData = TextData;
 using BotTTSTextData = TextData;
-using BotTranscriptionData = TextData;
 
 struct SpokenProgressData {
     // Text already spoken in this segment, including the current word.
@@ -157,8 +154,6 @@ struct BotOutputData {
     // What the text is: "word", "sentence" or a custom aggregation.
     std::string aggregated_by;
     std::optional<int64_t> segment_id;
-    // Protocol 1.x servers only. Whether the text has been spoken.
-    std::optional<bool> spoken;
     // Whether the text will be spoken by TTS.
     std::optional<bool> will_be_spoken;
     // "new", "in-progress" or "completed".
@@ -187,8 +182,6 @@ struct LLMFunctionCallStartedData {
     std::optional<std::string> function_name;
 };
 
-// Also parses the deprecated `llm-function-call` message, which sends the
-// arguments as `args`.
 struct LLMFunctionCallInProgressData {
     std::optional<std::string> function_name;
     std::string tool_call_id;

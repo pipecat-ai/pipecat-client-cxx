@@ -112,8 +112,6 @@ const char* to_string(MessageType type) {
         return "user-llm-text";
     case MessageType::BotOutput:
         return "bot-output";
-    case MessageType::BotTranscription:
-        return "bot-transcription";
     case MessageType::BotLLMText:
         return "bot-llm-text";
     case MessageType::BotLLMStarted:
@@ -128,8 +126,6 @@ const char* to_string(MessageType type) {
         return "bot-tts-started";
     case MessageType::BotTTSStopped:
         return "bot-tts-stopped";
-    case MessageType::LLMFunctionCall:
-        return "llm-function-call";
     case MessageType::LLMFunctionCallStarted:
         return "llm-function-call-started";
     case MessageType::LLMFunctionCallInProgress:
@@ -279,10 +275,7 @@ void from_json(const json& j, BotReadyData& data) {
 }
 
 void from_json(const json& j, ErrorData& data) {
-    // Older servers send the error in `message`.
-    data.error = value_or<std::string>(
-            j, "error", value_or<std::string>(j, "message", "")
-    );
+    data.error = value_or<std::string>(j, "error", "");
     data.fatal = value_or(j, "fatal", false);
 }
 
@@ -306,7 +299,6 @@ void from_json(const json& j, BotOutputData& data) {
     data.text = value_or<std::string>(j, "text", "");
     data.aggregated_by = value_or<std::string>(j, "aggregated_by", "");
     data.segment_id = optional_value<int64_t>(j, "segment_id");
-    data.spoken = optional_value<bool>(j, "spoken");
     data.will_be_spoken = optional_value<bool>(j, "will_be_spoken");
     data.spoken_status = optional_value<std::string>(j, "spoken_status");
     data.spoken_progress =
@@ -334,10 +326,6 @@ void from_json(const json& j, LLMFunctionCallInProgressData& data) {
     data.function_name = optional_value<std::string>(j, "function_name");
     data.tool_call_id = value_or<std::string>(j, "tool_call_id", "");
     data.arguments = json_value(j, "arguments");
-    if (data.arguments.is_null()) {
-        // Deprecated `llm-function-call` messages.
-        data.arguments = json_value(j, "args");
-    }
     if (data.arguments.is_null()) {
         data.arguments = json::object();
     }

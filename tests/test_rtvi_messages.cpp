@@ -42,7 +42,6 @@ TEST(MessageType, RoundTripsAllTypes) {
             {MessageType::UserTranscription, "user-transcription"},
             {MessageType::UserLLMText, "user-llm-text"},
             {MessageType::BotOutput, "bot-output"},
-            {MessageType::BotTranscription, "bot-transcription"},
             {MessageType::BotLLMText, "bot-llm-text"},
             {MessageType::BotLLMStarted, "bot-llm-started"},
             {MessageType::BotLLMStopped, "bot-llm-stopped"},
@@ -50,7 +49,6 @@ TEST(MessageType, RoundTripsAllTypes) {
             {MessageType::BotTTSText, "bot-tts-text"},
             {MessageType::BotTTSStarted, "bot-tts-started"},
             {MessageType::BotTTSStopped, "bot-tts-stopped"},
-            {MessageType::LLMFunctionCall, "llm-function-call"},
             {MessageType::LLMFunctionCallStarted, "llm-function-call-started"},
             {MessageType::LLMFunctionCallInProgress,
              "llm-function-call-in-progress"},
@@ -241,10 +239,6 @@ TEST(ServerData, Error) {
     data = json::parse(R"({"error": "Unsupported type"})").get<ErrorData>();
     EXPECT_EQ(data.error, "Unsupported type");
     EXPECT_FALSE(data.fatal);
-
-    // Older servers.
-    data = json::parse(R"({"message": "Old"})").get<ErrorData>();
-    EXPECT_EQ(data.error, "Old");
 }
 
 TEST(ServerData, Transcript) {
@@ -283,7 +277,6 @@ TEST(ServerData, BotOutput) {
     EXPECT_EQ(data.text, "Hello there.");
     EXPECT_EQ(data.aggregated_by, "sentence");
     EXPECT_EQ(data.segment_id, 3);
-    EXPECT_EQ(data.spoken, std::nullopt);
     EXPECT_EQ(data.will_be_spoken, true);
     EXPECT_EQ(data.spoken_status, "in-progress");
     ASSERT_TRUE(data.spoken_progress.has_value());
@@ -340,14 +333,6 @@ TEST(ServerData, LLMFunctionCallInProgress) {
                         .get<LLMFunctionCallInProgressData>();
     EXPECT_EQ(data.function_name, "get_weather");
     EXPECT_EQ(data.tool_call_id, "call_1");
-    EXPECT_EQ(data.arguments, json({{"city", "SF"}}));
-
-    // Deprecated `llm-function-call` sends `args`.
-    data = json::parse(R"({
-        "function_name": "get_weather", "tool_call_id": "call_1",
-        "args": {"city": "SF"}
-    })")
-                   .get<LLMFunctionCallInProgressData>();
     EXPECT_EQ(data.arguments, json({{"city", "SF"}}));
 
     // Arguments not reported.

@@ -617,6 +617,12 @@ void PipecatClient::Impl::handle_message(const rtvi::Message& message) {
 
     const json& data = message.data;
 
+    // Current bots still send this deprecated message along with bot-output,
+    // which replaces it.
+    if (message.type == "bot-transcription") {
+        return;
+    }
+
     auto type = rtvi::parse_message_type(message.type);
     if (!type) {
         notify([message](C& c) { c.on_unhandled_message(message); });
@@ -677,9 +683,6 @@ void PipecatClient::Impl::handle_message(const rtvi::Message& message) {
     case MessageType::BotOutput:
         notify_data(data, &C::on_bot_output);
         break;
-    case MessageType::BotTranscription:
-        // Deprecated and superseded by bot-output.
-        break;
     case MessageType::BotLLMText:
         notify_data(data, &C::on_bot_llm_text);
         break;
@@ -701,9 +704,7 @@ void PipecatClient::Impl::handle_message(const rtvi::Message& message) {
     case MessageType::BotTTSStopped:
         notify_event(&C::on_bot_tts_stopped);
         break;
-    case MessageType::LLMFunctionCall:
     case MessageType::LLMFunctionCallInProgress: {
-        // The deprecated llm-function-call parses as in-progress data.
         auto call = data.get<rtvi::LLMFunctionCallInProgressData>();
         run_function_call_handler(call);
         notify([call](C& c) { c.on_llm_function_call_in_progress(call); });
