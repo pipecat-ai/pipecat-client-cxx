@@ -26,6 +26,7 @@ endif()
 option(PIPECAT_DAILY_BUILD_TESTS "Build the unit tests" ${PIPECAT_DAILY_BUILD_TESTS_DEFAULT})
 option(PIPECAT_DAILY_INSTALL "Generate the install target" ON)
 option(PIPECAT_DAILY_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
+option(PIPECAT_DAILY_BUILD_DOCS "Build the API reference with Doxygen" OFF)
 
 include(GNUInstallDirs)
 
@@ -133,6 +134,60 @@ if(PIPECAT_DAILY_INSTALL)
     ${CMAKE_CURRENT_BINARY_DIR}/pipecat_dailyConfigVersion.cmake
     cmake/FindDailyCore.cmake
     DESTINATION ${PIPECAT_DAILY_CMAKE_DIR}
+  )
+endif()
+
+#
+# API reference
+#
+if(PIPECAT_DAILY_BUILD_DOCS)
+  find_package(Doxygen REQUIRED)
+
+  # doxygen-awesome-css theme, like the Pipecat C++ client's reference.
+  set(PIPECAT_DAILY_DOXYGEN_THEME_URL
+    https://raw.githubusercontent.com/jothepro/doxygen-awesome-css/v2.5.0
+  )
+  set(PIPECAT_DAILY_DOXYGEN_THEME_DIR
+    ${CMAKE_CURRENT_BINARY_DIR}/doxygen-awesome-css
+  )
+  file(DOWNLOAD
+    ${PIPECAT_DAILY_DOXYGEN_THEME_URL}/doxygen-awesome.css
+    ${PIPECAT_DAILY_DOXYGEN_THEME_DIR}/doxygen-awesome.css
+    EXPECTED_HASH SHA256=ea37516ec7a7a7780719b9d9a285fe3268a8d5411523d8b93af98d77e67cd1a1
+  )
+  file(DOWNLOAD
+    ${PIPECAT_DAILY_DOXYGEN_THEME_URL}/doxygen-awesome-sidebar-only.css
+    ${PIPECAT_DAILY_DOXYGEN_THEME_DIR}/doxygen-awesome-sidebar-only.css
+    EXPECTED_HASH SHA256=909d17055552149555fc87c5e0cf171a41d09a9e358c389a51b25ddfafd462af
+  )
+
+  set(DOXYGEN_PROJECT_NAME "Daily Transport for Pipecat C++ Client SDK")
+  set(DOXYGEN_PROJECT_NUMBER ${PROJECT_VERSION})
+  set(DOXYGEN_PROJECT_BRIEF "Connect to Pipecat bots over Daily")
+  set(DOXYGEN_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/docs)
+  set(DOXYGEN_USE_MDFILE_AS_MAINPAGE ${PROJECT_SOURCE_DIR}/docs/mainpage.md)
+  set(DOXYGEN_STRIP_FROM_PATH ${PROJECT_SOURCE_DIR}/include)
+  set(DOXYGEN_STRIP_FROM_INC_PATH ${PROJECT_SOURCE_DIR}/include)
+  # Warn about anything public that isn't documented.
+  set(DOXYGEN_EXTRACT_ALL NO)
+  set(DOXYGEN_WARN_IF_UNDOCUMENTED YES)
+  set(DOXYGEN_GENERATE_LATEX NO)
+  set(DOXYGEN_GENERATE_TREEVIEW YES)
+  set(DOXYGEN_DISABLE_INDEX NO)
+  set(DOXYGEN_FULL_SIDEBAR NO)
+  set(DOXYGEN_HTML_COLORSTYLE LIGHT)
+  set(DOXYGEN_HTML_EXTRA_STYLESHEET
+    ${PIPECAT_DAILY_DOXYGEN_THEME_DIR}/doxygen-awesome.css
+    ${PIPECAT_DAILY_DOXYGEN_THEME_DIR}/doxygen-awesome-sidebar-only.css
+  )
+  if(PIPECAT_DAILY_WARNINGS_AS_ERRORS)
+    set(DOXYGEN_WARN_AS_ERROR FAIL_ON_WARNINGS)
+  endif()
+
+  doxygen_add_docs(docs
+    ${PROJECT_SOURCE_DIR}/docs/mainpage.md
+    ${PROJECT_SOURCE_DIR}/include/pipecat/daily
+    COMMENT "Generating the API reference"
   )
 endif()
 

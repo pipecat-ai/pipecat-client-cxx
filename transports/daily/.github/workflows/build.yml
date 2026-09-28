@@ -28,6 +28,10 @@ jobs:
             os: ubuntu-24.04
             cxx: g++
             daily_core: linux-x86_64
+            # The API reference isn't published, but this checks that
+            # everything public is documented.
+            docs: true
+            packages: doxygen
           - name: Linux x86_64 (Clang)
             os: ubuntu-24.04
             cxx: clang++
@@ -87,9 +91,14 @@ jobs:
           -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
           -DCMAKE_PREFIX_PATH="$PWD/pipecat"
           -DPIPECAT_DAILY_WARNINGS_AS_ERRORS=ON
+          -DPIPECAT_DAILY_BUILD_DOCS=${{ matrix.docs && 'ON' || 'OFF' }}
 
       - name: Build
         run: cmake --build build
+
+      - name: Build the API reference
+        if: matrix.docs
+        run: cmake --build build --target docs
 
       - name: Test
         working-directory: build
