@@ -33,8 +33,13 @@ ConnectionParams parse_connection_params(const nlohmann::json& params);
 class Session {
    public:
     using SendAppMessage = std::function<void(std::string message)>;
+    using CaptureBotAudio = std::function<void(const std::string& bot_id)>;
 
-    Session(TransportObserver* observer, SendAppMessage send_app_message);
+    // `capture_bot_audio` is called when the bot joins, so its audio can be
+    // received.
+    Session(TransportObserver* observer,
+            SendAppMessage send_app_message,
+            CaptureBotAudio capture_bot_audio);
 
     // Sends the client-ready message once the bot's audio is playable, or now
     // if it already is.
@@ -59,6 +64,7 @@ class Session {
 
     TransportObserver* _observer;
     SendAppMessage _send_app_message;
+    CaptureBotAudio _capture_bot_audio;
 
     mutable std::mutex _mutex;
     // The first remote participant is the bot.

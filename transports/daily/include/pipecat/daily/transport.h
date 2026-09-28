@@ -38,7 +38,8 @@ struct DailyTransportOptions {
 /// URL of the bot's Daily room, and a token if the room needs one. Start
 /// endpoints like Pipecat Cloud return both, as `dailyRoom` and `dailyToken`.
 ///
-/// Only one DailyTransport can be initialized at a time.
+/// You can use several at the same time, e.g. one per client to talk to
+/// several bots.
 class DailyTransport : public Transport {
    public:
     /// Creates a transport.
@@ -53,8 +54,7 @@ class DailyTransport : public Transport {
     /// Transports can't be copied.
     DailyTransport& operator=(const DailyTransport&) = delete;
 
-    /// Prepares Daily. Throws TransportStartError if another DailyTransport
-    /// is already initialized.
+    /// Prepares Daily.
     void initialize(TransportObserver* observer) override;
 
     /// Joins the bot's Daily room.
@@ -76,11 +76,16 @@ class DailyTransport : public Transport {
 
     /// Sends `num_frames` frames of 16-bit PCM user audio, in the format of
     /// the options. Returns the number of frames sent.
+    ///
+    /// Send the audio continuously, as it's captured, and send silence while
+    /// the user is muted: the bot needs it to tell when the user stops
+    /// speaking. The audio is sent as is, without echo cancellation.
     int32_t send_user_audio(const int16_t* frames, size_t num_frames) override;
 
     /// Reads up to `num_frames` frames of 16-bit PCM bot audio, in the format
-    /// of the options. Waits until there's audio to read. Returns the number
-    /// of frames read.
+    /// of the options. Waits until there's audio to read, or until the
+    /// transport disconnects. Returns the number of frames read, or 0 if it
+    /// disconnected.
     int32_t read_bot_audio(int16_t* frames, size_t num_frames) override;
 
    private:

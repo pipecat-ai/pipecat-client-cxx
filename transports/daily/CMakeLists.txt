@@ -49,6 +49,8 @@ find_package(Threads REQUIRED)
 # Library
 #
 add_library(pipecat_daily STATIC
+  src/audio_buffer.cpp
+  src/context.cpp
   src/session.cpp
   src/transport.cpp
 )

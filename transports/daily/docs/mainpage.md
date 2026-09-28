@@ -74,14 +74,18 @@ options.transport =
 
 Send and read audio with the client's `send_user_audio()` and
 `read_bot_audio()`, from your audio threads. `read_bot_audio()` waits until
-there's bot audio to read.
+there's bot audio to read. Disconnecting wakes it up, so disconnect before
+stopping a thread that reads bot audio.
 
-## One transport at a time
+Send the user's audio continuously, as it's captured, and send silence while
+the user is muted: the bot needs it to tell when the user stops speaking.
 
-Only one DailyTransport can be in use at a time. It's in use from the client's
-first `start_bot()` or `connect()` until the client is destroyed, and while
-it is, another client with a DailyTransport fails to start with a
-`TransportStartError`.
+The user's audio is sent as is, without echo cancellation. If your app plays
+the bot through speakers, use your platform's echo cancellation or
+headphones, or the bot will hear itself.
 
-A client can disconnect and connect again as many times as you need, so you
-usually only need one.
+## Several bots at once
+
+Each client needs its own DailyTransport, and you can have several clients at
+the same time, e.g. to talk to several bots. A client can also disconnect and
+connect again as many times as you need.

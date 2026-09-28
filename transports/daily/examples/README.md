@@ -5,6 +5,8 @@
 - [voice](voice): talk with a bot using your microphone and speakers, with
   [PortAudio](https://www.portaudio.com). It also answers the bot's
   `get_current_time` function calls, if the bot asks the client to run them.
+  Use headphones: the example doesn't cancel echo, so with speakers the bot
+  hears itself.
 
 ## Building
 

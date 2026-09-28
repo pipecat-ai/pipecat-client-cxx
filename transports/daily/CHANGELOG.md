@@ -21,6 +21,8 @@ versions, which were never tagged (0.x), see
   return (`dailyRoom` and `dailyToken`), or with `url` and `token`.
 - Daily errors, and the call ending unexpectedly (e.g. when the room is
   closed), are reported to the client.
+- Several clients with a `DailyTransport` can run at the same time, e.g. to
+  talk to several bots.
 - An installable CMake package (`find_package(pipecat_daily)` and
   `pipecat::daily`), which also finds the Daily Core SDK.
 - Text chat and voice chat (PortAudio) examples that work with a bot on your
@@ -44,6 +46,11 @@ versions, which were never tagged (0.x), see
   `DAILY_CORE_PATH`.
 - Daily Core is told the version of the SDK the transport is built with,
   instead of a fixed one.
+- User audio is sent with a custom audio track, and bot audio is received from
+  the bot's track, instead of through Daily Core's virtual microphone and
+  speaker, which only one transport per app can use. User audio no longer
+  goes through echo cancellation, so apps that play the bot through speakers
+  need their platform's echo cancellation or headphones.
 
 ### Removed
 
@@ -60,10 +67,8 @@ versions, which were never tagged (0.x), see
 - Joining a room fails with a `TransportStartError` if Daily returns an
   error, e.g. because of a wrong token, instead of looking connected.
 - Rooms that don't need a token can be joined without one.
-- Destroying the transport now shuts down Daily Core, so a new client can use
-  a new `DailyTransport`. Since Daily Core supports one at a time, a second
-  `DailyTransport` in use at the same time fails to start with a
-  `TransportStartError`, instead of breaking the first one.
+- A second transport no longer breaks the first one, and Daily Core is shut
+  down after the last transport is destroyed.
 
 ### Migrating from 0.x
 

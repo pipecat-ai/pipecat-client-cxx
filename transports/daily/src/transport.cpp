@@ -6,13 +6,14 @@
 
 #include "pipecat/daily/transport.h"
 
+#include "audio_buffer.h"
+#include "context.h"
 #include "session.h"
 
 #include <pipecat/errors.h>
 
 extern "C" {
 #include "daily_core.h"
-#include "daily_core_version.h"
 }
 
 #include <atomic>
@@ -31,14 +32,11 @@ namespace pipecat {
 
 namespace {
 
-// NOTE: Do not modify. This is how Daily recognizes a known client library.
-const char* DAILY_LIBRARY = "daily-core-sdk";
-
 // How long to wait for daily-core requests, like joining a room.
 const std::chrono::seconds REQUEST_TIMEOUT {30};
 
-// Only one daily-core context can exist at a time.
-std::atomic<bool> context_in_use {false};
+// The ID of the renderer that receives the bot's audio.
+const uint64_t BOT_AUDIO_RENDERER = 1;
 
 // Result of a daily-core request: empty on success, the error otherwise.
 using RequestResult = std::optional<std::string>;
@@ -55,13 +53,24 @@ bool has_string(const json& j, const char* key, const char* value) {
 
 class DailyTransport::Impl {
    public:
-    explicit Impl(DailyTransportOptions options) : _options(options) {}
+    explicit Impl(DailyTransportOptions options)
+        : _options(options),
+          // Keep up to a second of bot audio the app hasn't read.
+          _bot_audio(
+                  options.bot_audio_channels,
+                  options.bot_audio_sample_rate
+          ) {}
 
     ~Impl() {
         disconnect();
-        if (_initialized) {
-            daily_core_context_destroy();
-            context_in_use = false;
+        if (_audio_track != nullptr) {
+            daily_core_context_destroy_custom_audio_track(_audio_track);
+            daily_core_context_track_release(_audio_track);
+        }
+        // The track has its own reference to the source. This releases ours,
+        // which also stops the source's sender thread.
+        if (_audio_source != nullptr) {
+            daily_core_context_track_release(_audio_source);
         }
     }
 
@@ -69,50 +78,22 @@ class DailyTransport::Impl {
         if (_initialized) {
             return;
         }
-        if (context_in_use.exchange(true)) {
-            throw TransportStartError(
-                    "Only one DailyTransport can be initialized at a time"
-            );
-        }
 
         _observer = observer;
+        _context = std::make_unique<daily::ContextRef>();
 
-        daily_core_set_log_level(DailyLogLevel_Off);
-
-        _device_manager = daily_core_context_create_device_manager();
-
-        DailyContextDelegate driver {};
-
-        DailyWebRtcContextDelegate webrtc {};
-        webrtc.ptr = this;
-        webrtc.fns.get_user_media = get_user_media;
-        webrtc.fns.get_enumerated_devices = get_enumerated_devices;
-        webrtc.fns.create_audio_device_module = create_audio_device_module;
-        webrtc.fns.get_audio_device = get_audio_device;
-        webrtc.fns.set_audio_device = set_audio_device;
-
-        DailyAboutClient about {};
-        about.library = DAILY_LIBRARY;
-        about.version = DAILY_CORE_VERSION;
-
-        daily_core_context_create(driver, webrtc, about);
-
-        _speaker = daily_core_context_create_virtual_speaker_device(
-                _device_manager,
-                "speaker",
-                _options.bot_audio_sample_rate,
-                _options.bot_audio_channels,
-                false
+        // daily-core's virtual microphone and speaker are one per process, so
+        // each transport sends user audio with its own track and receives the
+        // bot's audio with a renderer. The source doesn't add silence: the
+        // app sends audio continuously, like a microphone does.
+        _audio_source = daily_core_context_create_custom_audio_source();
+        _audio_track = const_cast<DailyAudioTrack*>(
+                daily_core_context_create_custom_audio_track(_audio_source)
         );
-        daily_core_context_select_speaker_device(_device_manager, "speaker");
-
-        _microphone = daily_core_context_create_virtual_microphone_device(
-                _device_manager,
-                "mic",
-                _options.user_audio_sample_rate,
-                _options.user_audio_channels,
-                true
-        );
+        const char* track_id =
+                daily_core_context_custom_audio_track_id(_audio_track);
+        _audio_track_id = track_id;
+        daily_core_string_free(track_id);
 
         _initialized = true;
     }
@@ -132,19 +113,22 @@ class DailyTransport::Impl {
         DailyCallClientDelegate delegate {};
         delegate.ptr = this;
         delegate.fns.on_event = on_event;
+        delegate.fns.on_audio_data = on_audio_data;
         daily_core_call_client_set_delegate(client, delegate);
 
         auto session = std::make_shared<daily::Session>(
                 _observer,
                 [this](std::string message) {
                     send_app_message(std::move(message));
-                }
+                },
+                [this](const std::string& bot_id) { capture_bot_audio(bot_id); }
         );
         {
             std::lock_guard<std::mutex> lock(_mutex);
             _client = client;
             _session = session;
         }
+        _bot_audio.open();
 
         // Only receive the bot's audio.
         std::string profiles = json {
@@ -161,17 +145,13 @@ class DailyTransport::Impl {
             throw TransportStartError("Unable to set up Daily: " + *result);
         }
 
-        // Send user audio from the virtual microphone, and no video.
-        std::string settings =
-                json {{"inputs",
-                       {{"camera", false},
-                        {"microphone",
-                         {{"isEnabled", true},
-                          {"settings",
-                           {{"deviceId", "mic"},
-                            {"customConstraints",
-                             {{"echoCancellation", {{"exact", true}}}}}}}}}}}
-                }.dump();
+        // Send user audio from our track, and no video.
+        json microphone = {
+                {"isEnabled", true},
+                {"settings", {{"customTrack", {{"id", _audio_track_id}}}}},
+        };
+        json inputs = {{"camera", false}, {"microphone", microphone}};
+        std::string settings = json {{"inputs", inputs}}.dump();
         // Before joining, so a call that ends right away stays ended.
         _connected = true;
         result = request([&](uint64_t id) {
@@ -206,6 +186,7 @@ class DailyTransport::Impl {
 
         session->set_leaving();
         _connected = false;
+        _bot_audio.close();
 
         // Nothing to leave if the call already ended on its own. daily-core
         // runs requests in order, so messages sent before are sent first.
@@ -248,18 +229,20 @@ class DailyTransport::Impl {
         if (!_connected) {
             return 0;
         }
-        return daily_core_context_virtual_microphone_device_write_frames(
-                _microphone, frames, num_frames, _request_id++, nullptr, nullptr
+        // Doesn't block, so it can be called from an audio callback.
+        daily_core_context_custom_audio_source_write_frames(
+                _audio_source,
+                frames,
+                16,
+                static_cast<int32_t>(_options.user_audio_sample_rate),
+                _options.user_audio_channels,
+                num_frames
         );
+        return static_cast<int32_t>(num_frames);
     }
 
     int32_t read_bot_audio(int16_t* frames, size_t num_frames) {
-        if (!_connected) {
-            return 0;
-        }
-        return daily_core_context_virtual_speaker_device_read_frames(
-                _speaker, frames, num_frames, _request_id++, nullptr, nullptr
-        );
+        return static_cast<int32_t>(_bot_audio.read(frames, num_frames));
     }
 
    private:
@@ -274,9 +257,10 @@ class DailyTransport::Impl {
     // result. Returns the ID.
     template<typename F>
     uint64_t request_async(F make_request, RequestDone done) {
-        uint64_t id = _request_id++;
+        uint64_t id;
         {
             std::lock_guard<std::mutex> lock(_requests_mutex);
+            id = _next_request_id++;
             _requests.emplace(id, std::move(done));
         }
         make_request(id);
@@ -360,6 +344,33 @@ class DailyTransport::Impl {
         );
     }
 
+    // Receives the bot's audio with our renderer, without waiting.
+    void capture_bot_audio(const std::string& bot_id) {
+        std::lock_guard<std::mutex> lock(_mutex);
+        if (_client == nullptr) {
+            return;
+        }
+        request_async(
+                [&](uint64_t id) {
+                    daily_core_call_client_set_participant_audio_renderer(
+                            _client,
+                            id,
+                            BOT_AUDIO_RENDERER,
+                            bot_id.c_str(),
+                            "microphone",
+                            _options.bot_audio_sample_rate
+                    );
+                },
+                [this](const RequestResult& result) {
+                    if (result) {
+                        _observer->on_transport_error(
+                                "Unable to receive the bot's audio: " + *result,
+                                false
+                        );
+                    }
+                }
+        );
+    }
 
     //
     // daily-core callbacks. Events arrive on daily-core's thread.
@@ -378,6 +389,7 @@ class DailyTransport::Impl {
         if (has_string(event, "action", "call-state-updated") &&
             has_string(event, "state", "left")) {
             _connected = false;
+            _bot_audio.close();
         }
 
         std::shared_ptr<daily::Session> session;
@@ -398,54 +410,33 @@ class DailyTransport::Impl {
         static_cast<Impl*>(delegate)->handle_event(event_json);
     }
 
-    static WebrtcAudioDeviceModule* create_audio_device_module(
-            DailyRawWebRtcContextDelegate* delegate,
-            WebrtcTaskQueueFactory* task_queue_factory
+    static void on_audio_data(
+            DailyRawCallClientDelegate* delegate,
+            uint64_t renderer_id,
+            const char* /* peer_id */,
+            const DailyAudioData* audio
     ) {
-        return daily_core_context_create_audio_device_module(
-                static_cast<Impl*>(delegate)->_device_manager,
-                task_queue_factory
+        if (renderer_id != BOT_AUDIO_RENDERER || audio->bits_per_sample != 16) {
+            return;
+        }
+        static_cast<Impl*>(delegate)->_bot_audio.write(
+                reinterpret_cast<const int16_t*>(audio->audio_frames),
+                audio->num_audio_frames,
+                audio->num_channels
         );
     }
-
-    static void* get_user_media(
-            DailyRawWebRtcContextDelegate* delegate,
-            WebrtcPeerConnectionFactory* peer_connection_factory,
-            WebrtcThread* signaling_thread,
-            WebrtcThread* worker_thread,
-            WebrtcThread* network_thread,
-            const char* constraints
-    ) {
-        return daily_core_context_device_manager_get_user_media(
-                static_cast<Impl*>(delegate)->_device_manager,
-                peer_connection_factory,
-                signaling_thread,
-                worker_thread,
-                network_thread,
-                constraints
-        );
-    }
-
-    static char* get_enumerated_devices(DailyRawWebRtcContextDelegate* delegate
-    ) {
-        return daily_core_context_device_manager_enumerated_devices(
-                static_cast<Impl*>(delegate)->_device_manager
-        );
-    }
-
-    static const char* get_audio_device(DailyRawWebRtcContextDelegate*) {
-        return "";
-    }
-
-    static void set_audio_device(DailyRawWebRtcContextDelegate*, const char*) {}
 
     DailyTransportOptions _options;
     TransportObserver* _observer = nullptr;
     bool _initialized = false;
 
-    DailyDeviceManager* _device_manager = nullptr;
-    DailyVirtualSpeakerDevice* _speaker = nullptr;
-    DailyVirtualMicrophoneDevice* _microphone = nullptr;
+    // Keeps daily-core running while the transport exists.
+    std::unique_ptr<daily::ContextRef> _context;
+
+    DailyAudioSource* _audio_source = nullptr;
+    DailyAudioTrack* _audio_track = nullptr;
+    std::string _audio_track_id;
+    daily::AudioBuffer _bot_audio;
 
     // Guards the call client and its session.
     std::mutex _mutex;
@@ -453,9 +444,9 @@ class DailyTransport::Impl {
     std::shared_ptr<daily::Session> _session;
     std::atomic<bool> _connected {false};
 
-    std::atomic<uint64_t> _request_id {0};
     // Requests waiting for their results, by ID.
     std::mutex _requests_mutex;
+    uint64_t _next_request_id = 0;
     std::map<uint64_t, RequestDone> _requests;
 };
 

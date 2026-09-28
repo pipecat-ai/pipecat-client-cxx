@@ -67,9 +67,12 @@ json participant_event(const std::string& action, const json& participant) {
 struct TestSession {
     Observer observer;
     std::vector<std::string> sent;
-    Session session {&observer, [this](std::string message) {
-                         sent.push_back(std::move(message));
-                     }};
+    std::vector<std::string> captured;
+    Session session {
+            &observer,
+            [this](std::string message) { sent.push_back(std::move(message)); },
+            [this](const std::string& bot_id) { captured.push_back(bot_id); }
+    };
 };
 
 }  // namespace
@@ -148,6 +151,30 @@ TEST(Session, FirstRemoteParticipantIsTheBot) {
     );
 }
 
+TEST(Session, CapturesBotAudio) {
+    TestSession test;
+
+    test.session.handle_event(
+            participant_event("participant-joined", participant("bot"))
+    );
+    test.session.handle_event(participant_event(
+            "participant-updated", participant("bot", false, "playable")
+    ));
+    test.session.handle_event(
+            participant_event("participant-joined", participant("user"))
+    );
+    EXPECT_EQ(test.captured, (std::vector<std::string> {"bot"}));
+
+    // A new bot after the first one left.
+    test.session.handle_event(
+            participant_event("participant-left", participant("bot"))
+    );
+    test.session.handle_event(
+            participant_event("participant-joined", participant("bot-2"))
+    );
+    EXPECT_EQ(test.captured, (std::vector<std::string> {"bot", "bot-2"}));
+}
+
 TEST(Session, ParticipantDetails) {
     Participant bot;
     class : public TransportObserver {
@@ -164,7 +191,7 @@ TEST(Session, ParticipantDetails) {
         void on_transport_disconnected() override {}
     } observer;
     observer.bot = &bot;
-    Session session(&observer, [](std::string) {});
+    Session session(&observer, [](std::string) {}, [](const std::string&) {});
 
     session.handle_event(
             participant_event("participant-joined", participant("bot"))

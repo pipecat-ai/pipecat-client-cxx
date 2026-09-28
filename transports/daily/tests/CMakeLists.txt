@@ -20,7 +20,9 @@ if(NOT GTest_FOUND)
 endif()
 
 add_executable(pipecat_daily_tests
+  test_audio_buffer.cpp
   test_session.cpp
+  test_transport.cpp
 )
 
 set_target_properties(pipecat_daily_tests PROPERTIES

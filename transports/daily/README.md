@@ -51,9 +51,11 @@ Then use the client as usual, see the
   you ask with `createDailyRoom`. If you already have a room, connect to it
   directly with `client.connect({{"url", room_url}, {"token", token}})`.
 - Audio is 16-bit PCM, 16 kHz mono by default. Change it with
-  `pipecat::DailyTransportOptions`.
-- Only one `DailyTransport` can be in use at a time. A client can disconnect
-  and connect again as many times as you need.
+  `pipecat::DailyTransportOptions`. The user's audio is sent without echo
+  cancellation, so if you play the bot through speakers, use your platform's
+  echo cancellation or headphones.
+- Each client needs its own `DailyTransport`, and several clients can run at
+  the same time, e.g. to talk to several bots.
 
 ## 💡 Examples
 

@@ -81,8 +81,14 @@ ConnectionParams parse_connection_params(const json& params) {
     return result;
 }
 
-Session::Session(TransportObserver* observer, SendAppMessage send_app_message)
-    : _observer(observer), _send_app_message(std::move(send_app_message)) {}
+Session::Session(
+        TransportObserver* observer,
+        SendAppMessage send_app_message,
+        CaptureBotAudio capture_bot_audio
+)
+    : _observer(observer),
+      _send_app_message(std::move(send_app_message)),
+      _capture_bot_audio(std::move(capture_bot_audio)) {}
 
 void Session::send_ready_message(std::string message) {
     {
@@ -150,6 +156,7 @@ void Session::handle_participant(const json& participant, bool joined) {
     }
 
     if (new_bot) {
+        _capture_bot_audio(info.id);
         _observer->on_bot_connected(info);
     }
     if (new_participant) {
