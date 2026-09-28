@@ -144,6 +144,7 @@ class PipecatClient::Impl : public TransportObserver {
     void on_bot_disconnected(const Participant& bot) override;
     void on_participant_joined(const Participant& participant) override;
     void on_participant_left(const Participant& participant) override;
+    void on_transport_error(const std::string& error, bool fatal) override;
     void on_transport_disconnected() override;
 
    private:
@@ -586,6 +587,13 @@ void PipecatClient::Impl::on_participant_left(const Participant& participant) {
     notify([participant](PipecatClientCallbacks& c) {
         c.on_participant_left(participant);
     });
+}
+
+void PipecatClient::Impl::on_transport_error(
+        const std::string& error,
+        bool fatal
+) {
+    report_error(error, fatal);
 }
 
 void PipecatClient::Impl::on_transport_disconnected() {

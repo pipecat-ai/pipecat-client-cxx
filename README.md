@@ -186,7 +186,7 @@ Meson projects need `cpp_std=c++17` or newer.
 
 Implement `pipecat::Transport` (see `include/pipecat/transport.h`):
 
-- Report messages from the bot, participants joining and leaving, and
+- Report messages from the bot, participants joining and leaving, errors and
   unexpected disconnections to the `TransportObserver` given to
   `initialize()`. Observer calls never block, so you can make them from any
   thread, including event threads that must never block.

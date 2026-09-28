@@ -70,6 +70,10 @@ class TransportObserver {
     /// Someone other than the bot left the session.
     virtual void on_participant_left(const Participant& participant) = 0;
 
+    /// Something went wrong in the transport. `fatal` is true if the session
+    /// can't go on, e.g. because the bot's room was closed.
+    virtual void on_transport_error(const std::string& error, bool fatal) = 0;
+
     /// The transport disconnected on its own, e.g. because the session ended or
     /// the network dropped. Not called after Transport::disconnect().
     virtual void on_transport_disconnected() = 0;

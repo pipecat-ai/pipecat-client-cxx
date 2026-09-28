@@ -266,6 +266,21 @@ TEST(PipecatClient, TransportDisconnects) {
     EXPECT_EQ(client->state(), TransportState::Disconnected);
 }
 
+TEST(PipecatClient, TransportErrors) {
+    Recorder recorder;
+    auto [transport, client] = make_client(recorder);
+    client->connect();
+
+    transport->deliver_transport_error("Network hiccup", false);
+    transport->deliver_transport_error("Room closed", true);
+
+    ASSERT_TRUE(recorder.wait_for("error:Room closed:fatal"));
+    EXPECT_EQ(
+            recorder.events("error:"),
+            (Events {"error:Network hiccup", "error:Room closed:fatal"})
+    );
+}
+
 TEST(PipecatClient, DestructorDisconnectsAndDeliversCallbacks) {
     Recorder recorder;
     auto [transport, client] = make_client(recorder);

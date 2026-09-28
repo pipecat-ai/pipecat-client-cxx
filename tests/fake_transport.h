@@ -154,6 +154,12 @@ class FakeTransport : public pipecat::Transport {
         });
     }
 
+    void deliver_transport_error(const std::string& error, bool fatal) {
+        _events.post([this, error, fatal] {
+            _observer->on_transport_error(error, fatal);
+        });
+    }
+
     void deliver_transport_disconnected() {
         _events.post([this] {
             _connected = false;
