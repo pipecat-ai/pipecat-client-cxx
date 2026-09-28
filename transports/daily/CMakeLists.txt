@@ -14,6 +14,7 @@ if(POLICY CMP0135)
   cmake_policy(SET CMP0135 NEW)
 endif()
 
+option(PIPECAT_DAILY_INSTALL "Generate the install target" ON)
 option(PIPECAT_DAILY_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
 
 include(GNUInstallDirs)
@@ -83,4 +84,44 @@ endif()
 
 if(APPLE)
   set_target_properties(pipecat_daily PROPERTIES CXX_VISIBILITY_PRESET hidden)
+endif()
+
+#
+# Install
+#
+if(PIPECAT_DAILY_INSTALL)
+  include(CMakePackageConfigHelpers)
+
+  set(PIPECAT_DAILY_CMAKE_DIR ${CMAKE_INSTALL_LIBDIR}/cmake/pipecat_daily)
+
+  install(TARGETS pipecat_daily
+    EXPORT pipecat_dailyTargets
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  )
+
+  install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
+  install(EXPORT pipecat_dailyTargets
+    NAMESPACE pipecat::
+    DESTINATION ${PIPECAT_DAILY_CMAKE_DIR}
+  )
+
+  configure_package_config_file(
+    cmake/pipecat_dailyConfig.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/pipecat_dailyConfig.cmake
+    INSTALL_DESTINATION ${PIPECAT_DAILY_CMAKE_DIR}
+  )
+  write_basic_package_version_file(
+    ${CMAKE_CURRENT_BINARY_DIR}/pipecat_dailyConfigVersion.cmake
+    COMPATIBILITY SameMajorVersion
+  )
+  # Daily Core has no CMake package, so ship the module that finds it.
+  install(FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/pipecat_dailyConfig.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/pipecat_dailyConfigVersion.cmake
+    cmake/FindDailyCore.cmake
+    DESTINATION ${PIPECAT_DAILY_CMAKE_DIR}
+  )
 endif()
