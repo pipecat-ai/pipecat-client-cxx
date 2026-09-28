@@ -4,6 +4,9 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
+/// @file
+/// Includes the whole SDK.
+
 #ifndef PIPECAT_PIPECAT_H
 #define PIPECAT_PIPECAT_H
 
