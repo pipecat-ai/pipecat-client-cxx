@@ -34,7 +34,8 @@ ninja -C build-text
 For the voice example, replace `text` with `voice`.
 
 On Windows, the examples get their dependencies from
-[vcpkg](https://vcpkg.io/en/):
+[vcpkg](https://vcpkg.io/en/), and the build copies `daily_core.dll` next to
+them:
 
 ```bash
 cmake -S text -B build-text -DCMAKE_TOOLCHAIN_FILE=%VCPKG_ROOT%/scripts/buildsystems/vcpkg.cmake -DCMAKE_PREFIX_PATH="C:/path/to/pipecat;C:/path/to/pipecat_daily" -DDailyCore_ROOT=C:/path/to/daily-core-sdk

@@ -78,8 +78,8 @@ You need:
   3.16 or newer.
 - The [Pipecat C++ Client SDK](https://github.com/pipecat-ai/pipecat-client-cxx)
   1.0. Build and install it following its README.
-- The [Daily Core C++ SDK](https://github.com/daily-co/daily-core-sdk) 0.22.0.
-  Download it for your platform from its
+- The [Daily Core C++ SDK](https://github.com/daily-co/daily-core-sdk) 0.23.0
+  or newer. Download it for your platform from its
   [releases](https://github.com/daily-co/daily-core-sdk/releases) and unpack
   it.
 
@@ -129,6 +129,11 @@ target_link_libraries(my_app PRIVATE pipecat::daily)
 ```
 
 `pipecat::daily` also links the Pipecat client and the Daily Core SDK.
+
+Daily Core is a shared library, so ship it with your app. On Windows, put
+`daily_core.dll` next to your `.exe`, like the examples do. See
+[Shipping the library](https://github.com/daily-co/daily-core-sdk#shipping-the-library)
+in the Daily Core SDK's README.
 
 You can also include this repository with `add_subdirectory()` or
 `FetchContent`, after the Pipecat client, and link to the same

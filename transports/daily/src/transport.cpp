@@ -12,6 +12,7 @@
 
 extern "C" {
 #include "daily_core.h"
+#include "daily_core_version.h"
 }
 
 #include <atomic>
@@ -32,8 +33,6 @@ namespace {
 
 // NOTE: Do not modify. This is how Daily recognizes a known client library.
 const char* DAILY_LIBRARY = "daily-core-sdk";
-// Version of the Daily Core SDK this transport is built for.
-const char* DAILY_LIBRARY_VERSION = "0.22.0";
 
 // How long to wait for daily-core requests, like joining a room.
 const std::chrono::seconds REQUEST_TIMEOUT {30};
@@ -94,7 +93,7 @@ class DailyTransport::Impl {
 
         DailyAboutClient about {};
         about.library = DAILY_LIBRARY;
-        about.version = DAILY_LIBRARY_VERSION;
+        about.version = DAILY_CORE_VERSION;
 
         daily_core_context_create(driver, webrtc, about);
 

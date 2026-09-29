@@ -31,13 +31,19 @@ versions, which were never tagged (0.x), see
 
 ### Changed
 
-- Daily Core C++ SDK 0.22.0.
+- Daily Core C++ SDK 0.23.0 or newer. It's a shared library, so apps ship it
+  with them (see the README).
+- On Windows, `_ITERATOR_DEBUG_LEVEL` is no longer set to 0, so apps can use
+  Debug builds with their usual settings.
 - Everything is now in the `pipecat` namespace, and the header is
   `<pipecat/daily/transport.h>`.
 - C++17 on every platform. MSVC used C++20.
 - The library is built with RTTI (no more `-fno-rtti`).
-- The Daily Core SDK can also be set with `DailyCore_ROOT`, besides the
-  `DAILY_CORE_PATH` environment variable.
+- The Daily Core SDK is found through its CMake package: point
+  `DailyCore_ROOT` or `CMAKE_PREFIX_PATH` to it, instead of setting
+  `DAILY_CORE_PATH`.
+- Daily Core is told the version of the SDK the transport is built with,
+  instead of a fixed one.
 
 ### Removed
 
@@ -69,3 +75,4 @@ versions, which were never tagged (0.x), see
 | Daily Bots start URL and configuration | A start endpoint, like Pipecat Cloud, with `createDailyRoom` |
 | `room_url` and `token` in the connection info | `url` (or `dailyRoom` or `room_url`) and `token` (or `dailyToken`) |
 | `FindDailyPipecat.cmake`, `DAILY_PIPECAT_SDK_PATH` and `PIPECAT_SDK_PATH` | `find_package(pipecat_daily)` with `CMAKE_PREFIX_PATH` |
+| `DAILY_CORE_PATH` | `DailyCore_ROOT` |

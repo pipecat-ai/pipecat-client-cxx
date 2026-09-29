@@ -30,8 +30,6 @@ option(PIPECAT_DAILY_BUILD_DOCS "Build the API reference with Doxygen" OFF)
 
 include(GNUInstallDirs)
 
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
-
 #
 # Dependencies
 #
@@ -40,14 +38,12 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 if(NOT TARGET pipecat::pipecat)
   find_package(pipecat 1.0 REQUIRED)
 endif()
-find_package(DailyCore REQUIRED)
+# The oldest Daily Core SDK that works: the first with a CMake package, and
+# with the custom audio track fixes the transport needs. Point DailyCore_ROOT
+# (a CMake or environment variable) or CMAKE_PREFIX_PATH to the SDK.
+set(PIPECAT_DAILY_MIN_DAILY_CORE_VERSION 0.23.0)
+find_package(DailyCore ${PIPECAT_DAILY_MIN_DAILY_CORE_VERSION} CONFIG REQUIRED)
 find_package(Threads REQUIRED)
-
-# Daily Core is built with this setting, so everything that links it must be
-# too, including the tests.
-if(MSVC)
-  add_compile_definitions(_ITERATOR_DEBUG_LEVEL=0)
-endif()
 
 #
 # Library
@@ -81,7 +77,6 @@ target_link_libraries(pipecat_daily
 )
 
 if(MSVC)
-  target_compile_definitions(pipecat_daily PUBLIC _ITERATOR_DEBUG_LEVEL=0)
   target_compile_options(pipecat_daily PRIVATE
     /W4
     $<$<BOOL:${PIPECAT_DAILY_WARNINGS_AS_ERRORS}>:/WX>
@@ -128,11 +123,9 @@ if(PIPECAT_DAILY_INSTALL)
     ${CMAKE_CURRENT_BINARY_DIR}/pipecat_dailyConfigVersion.cmake
     COMPATIBILITY SameMajorVersion
   )
-  # Daily Core has no CMake package, so ship the module that finds it.
   install(FILES
     ${CMAKE_CURRENT_BINARY_DIR}/pipecat_dailyConfig.cmake
     ${CMAKE_CURRENT_BINARY_DIR}/pipecat_dailyConfigVersion.cmake
-    cmake/FindDailyCore.cmake
     DESTINATION ${PIPECAT_DAILY_CMAKE_DIR}
   )
 endif()

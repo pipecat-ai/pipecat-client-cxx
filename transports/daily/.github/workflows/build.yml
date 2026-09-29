@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  DAILY_CORE_VERSION: 0.22.0
+  DAILY_CORE_VERSION: 0.23.0
   # Branch of pipecat-ai/pipecat-client-cxx to build against. Switch to main
   # once the Pipecat C++ client 1.0 is merged.
   PIPECAT_CLIENT_REF: aleix/pipecat-client-1.0

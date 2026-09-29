@@ -37,5 +37,14 @@ target_link_libraries(pipecat_daily_tests PRIVATE
   GTest::gtest_main
 )
 
+# Daily Core is a shared library. On Windows, the tests need it next to them to
+# run, and gtest_discover_tests() runs them right after they're built.
+if(WIN32)
+  add_custom_command(TARGET pipecat_daily_tests POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+      $<TARGET_FILE:DailyCore::DailyCore> $<TARGET_FILE_DIR:pipecat_daily_tests>
+  )
+endif()
+
 include(GoogleTest)
 gtest_discover_tests(pipecat_daily_tests)
