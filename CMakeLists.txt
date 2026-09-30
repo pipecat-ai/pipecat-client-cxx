@@ -50,12 +50,6 @@ if(NOT nlohmann_json_FOUND)
   FetchContent_MakeAvailable(nlohmann_json)
 endif()
 
-# Kept from the original build. Consumers linking a Debug build must use the
-# same value.
-if(MSVC)
-  add_compile_definitions(_ITERATOR_DEBUG_LEVEL=0)
-endif()
-
 #
 # Library
 #

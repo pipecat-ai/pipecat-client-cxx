@@ -50,6 +50,8 @@ were never tagged (0.x), see [Migrating from 0.x](#migrating-from-0x).
 - Everything is now in the `pipecat` namespace (`pipecat::rtvi` for protocol
   types), and the headers are in `include/pipecat/`.
 - C++17 on every platform. MSVC used C++20.
+- On Windows, `_ITERATOR_DEBUG_LEVEL` is no longer set to 0, so apps can use
+  Debug builds with their usual settings.
 - nlohmann/json (3.7 or newer) is now a dependency instead of a bundled 3.7.3
   copy. It's downloaded if it's not installed.
 - The library is built with RTTI (no more `-fno-rtti`), so apps with RTTI can
