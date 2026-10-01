@@ -53,11 +53,11 @@ Then use the client as usual, see the
 
 ## 💡 Examples
 
-- [text](examples/text): chat with a bot in the terminal.
-- [voice](examples/voice): talk with a bot using your microphone and speakers.
+The [examples](../../examples) use the Daily transport:
 
-See [examples/README.md](examples/README.md) to build them and run them with
-a bot on your machine or on Pipecat Cloud.
+- [text](../../examples/text): chat with a bot in the terminal.
+- [voice](../../examples/voice): talk with a bot using your microphone and
+  speakers.
 
 ## 📚 Documentation
 

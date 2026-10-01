@@ -116,11 +116,11 @@ jobs:
           cmake --build build-package-daily
           ./build-package-daily/package_test
 
-      - name: Build the Daily examples
+      - name: Build the examples
         if: matrix.daily_core
         run: |
           for example in text voice; do
-            cmake -S "transports/daily/examples/$example" -B "build-$example" -G Ninja \
+            cmake -S "examples/$example" -B "build-$example" -G Ninja \
               -DCMAKE_BUILD_TYPE=Release \
               -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
               -DCMAKE_PREFIX_PATH="$PWD/install"
