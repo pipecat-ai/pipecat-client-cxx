@@ -10,8 +10,9 @@
 
 ## Building
 
-The examples use the Daily transport. First build and install the Pipecat C++
-client with it, see
+The examples can use the Daily and WebSocket transports, whichever the Pipecat
+C++ client was installed with. First build and install the client with at
+least one of them, see
 [Building transports](../README.md#-building-transports).
 
 The voice example also needs PortAudio:
@@ -34,11 +35,13 @@ cmake -S text -B build-text -G Ninja -DCMAKE_BUILD_TYPE=Release \
 ninja -C build-text
 ```
 
+Without `DailyCore_ROOT`, the examples are built without the Daily transport.
 For the voice example, replace `text` with `voice`.
 
 On Windows, the examples get their dependencies from
 [vcpkg](https://vcpkg.io/en/), and the build copies `daily_core.dll` next to
-them:
+them. If the client was installed with the WebSocket transport, also add
+`-DVCPKG_MANIFEST_FEATURES=websocket`:
 
 ```bash
 cmake -S text -B build-text -DCMAKE_TOOLCHAIN_FILE=%VCPKG_ROOT%/scripts/buildsystems/vcpkg.cmake -DCMAKE_PREFIX_PATH=C:/path/to/pipecat -DDailyCore_ROOT=C:/path/to/daily-core-sdk
@@ -48,18 +51,26 @@ cmake --build build-text --config Release
 ## Running
 
 The examples start a bot through its start endpoint, then connect to it. Pass
-the endpoint's URL:
+the endpoint's URL, and the transport with `--transport` (`daily` by default):
 
 ```bash
 ./build-text/text_chat http://localhost:7860/start
-./build-voice/voice_chat http://localhost:7860/start
+./build-voice/voice_chat --transport websocket http://localhost:7860/start
 ```
 
 On Windows, they're in `build-text\Release` and `build-voice\Release`.
 
-To run a bot on your machine, start any Pipecat bot that supports Daily with
-the development runner, e.g. `python bot.py -t daily`. Its start endpoint is
-`http://localhost:7860/start`, and it needs a `DAILY_API_KEY` to create rooms.
+To run a bot on your machine, start a Pipecat bot with the development runner
+and the same transport:
+
+- Daily: `python bot.py -t daily`. It needs a `DAILY_API_KEY` to create
+  rooms.
+- WebSocket: `python bot.py -t websocket`. The bot needs Pipecat's
+  `ProtobufFrameSerializer`, like the
+  [websocket](https://github.com/pipecat-ai/pipecat-examples/tree/main/websocket)
+  example's bot.
+
+Its start endpoint is `http://localhost:7860/start`.
 
 For a bot on [Pipecat Cloud](https://docs.pipecat.ai/pipecat-cloud), use your
 agent's start endpoint and set your public API key:

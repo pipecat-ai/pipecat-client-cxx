@@ -53,7 +53,7 @@ Then use the client as usual, see the
 
 ## 💡 Examples
 
-The [examples](../../examples) use the Daily transport:
+The [examples](../../examples) can use the Daily transport, their default:
 
 - [text](../../examples/text): chat with a bot in the terminal.
 - [voice](../../examples/voice): talk with a bot using your microphone and

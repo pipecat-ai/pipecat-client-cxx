@@ -54,6 +54,15 @@ Then use the client as usual, see the
 - Each client needs its own `WebSocketTransport`, and several clients can run
   at the same time, e.g. to talk to several bots.
 
+## 💡 Examples
+
+The [examples](../../examples) can use the WebSocket transport, with
+`--transport websocket`:
+
+- [text](../../examples/text): chat with a bot in the terminal.
+- [voice](../../examples/voice): talk with a bot using your microphone and
+  speakers.
+
 ## 📚 Documentation
 
 - Guides: [docs.pipecat.ai](https://docs.pipecat.ai)

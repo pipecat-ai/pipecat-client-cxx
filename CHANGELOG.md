@@ -151,6 +151,7 @@ and was rewritten for this version, like the client.
   (`find_package(pipecat COMPONENTS websocket)` and `pipecat::websocket`),
   which also finds libdatachannel and speexdsp. libdatachannel is downloaded
   if it's not installed.
+- The examples can use it, with `--transport websocket`.
 
 ### Migrating from 0.x
 

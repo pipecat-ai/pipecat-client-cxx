@@ -93,8 +93,9 @@ auto weather = client.send_client_request("get-weather", {{"city", "SF"}}).get()
 - [text](examples/text): chat with a bot in the terminal.
 - [voice](examples/voice): talk with a bot using your microphone and speakers.
 
-They use the Daily transport. See [examples/README.md](examples/README.md) to
-build them and run them with a bot on your machine or on Pipecat Cloud.
+They use the Daily or the WebSocket transport. See
+[examples/README.md](examples/README.md) to build them and run them with a bot
+on your machine or on Pipecat Cloud.
 
 ## 🧵 Threading
 

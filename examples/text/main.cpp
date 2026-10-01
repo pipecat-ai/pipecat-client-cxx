@@ -7,19 +7,29 @@
 // Chats with a Pipecat bot in the terminal: starts the bot, sends each line you
 // type and prints the bot's answers as they stream in.
 //
-// Usage: text_chat START_URL
+// Usage: text_chat [--transport TRANSPORT] START_URL
 //
 // START_URL is the bot's start endpoint, e.g. http://localhost:7860/start for
 // a local bot or https://api.pipecat.daily.co/v1/public/AGENT/start for
 // Pipecat Cloud. If PIPECAT_API_KEY is set, it's sent as a bearer token.
+//
+// TRANSPORT is how to connect to the bot: `daily` (the default) or
+// `websocket`, if the example was built with it.
 
-#include <pipecat/daily/transport.h>
 #include <pipecat/pipecat.h>
+
+#ifdef PIPECAT_EXAMPLE_DAILY
+#include <pipecat/daily/transport.h>
+#endif
+#ifdef PIPECAT_EXAMPLE_WEBSOCKET
+#include <pipecat/websocket/transport.h>
+#endif
 
 #include <cstdlib>
 #include <iostream>
 #include <mutex>
 #include <string>
+#include <vector>
 
 namespace {
 
@@ -70,27 +80,57 @@ class App : public pipecat::PipecatClientCallbacks {
     bool _answering = false;
 };
 
+// Creates the transport called `name`, if the example was built with it, and
+// asks the start endpoint for a bot that uses it.
+std::unique_ptr<pipecat::Transport>
+make_transport(const std::string& name, pipecat::APIRequest& request) {
+#ifdef PIPECAT_EXAMPLE_DAILY
+    if (name == "daily") {
+        request.request_data = {{"createDailyRoom", true}};
+        return std::make_unique<pipecat::DailyTransport>();
+    }
+#endif
+#ifdef PIPECAT_EXAMPLE_WEBSOCKET
+    if (name == "websocket") {
+        request.request_data = {{"transport", "websocket"}};
+        return std::make_unique<pipecat::WebSocketTransport>();
+    }
+#endif
+    return nullptr;
+}
+
 }  // namespace
 
 int main(int argc, char* argv[]) {
-    if (argc != 2) {
-        std::cerr << "Usage: " << argv[0] << " START_URL" << std::endl;
+    std::vector<std::string> args(argv + 1, argv + argc);
+    std::string transport = "daily";
+    if (args.size() == 3 && args[0] == "--transport") {
+        transport = args[1];
+        args.erase(args.begin(), args.begin() + 2);
+    }
+    if (args.size() != 1) {
+        std::cerr << "Usage: " << argv[0]
+                  << " [--transport TRANSPORT] START_URL" << std::endl;
         return EXIT_FAILURE;
+    }
+
+    pipecat::APIRequest request;
+    request.endpoint = args[0];
+    if (const char* api_key = std::getenv("PIPECAT_API_KEY")) {
+        request.headers["Authorization"] = std::string("Bearer ") + api_key;
     }
 
     App app;
 
     pipecat::PipecatClientOptions options;
-    options.transport = std::make_unique<pipecat::DailyTransport>();
+    options.transport = make_transport(transport, request);
+    if (!options.transport) {
+        std::cerr << "This example was built without the " << transport
+                  << " transport" << std::endl;
+        return EXIT_FAILURE;
+    }
     options.callbacks = &app;
     pipecat::PipecatClient client(std::move(options));
-
-    pipecat::APIRequest request;
-    request.endpoint = argv[1];
-    request.request_data = {{"createDailyRoom", true}};
-    if (const char* api_key = std::getenv("PIPECAT_API_KEY")) {
-        request.headers["Authorization"] = std::string("Bearer ") + api_key;
-    }
 
     try {
         print("Starting the bot...");

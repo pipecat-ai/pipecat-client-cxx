@@ -3,5 +3,20 @@
     "curl",
     "nlohmann-json",
     "portaudio"
-  ]
+  ],
+  "features": {
+    "websocket": {
+      "description": "Dependencies of the WebSocket transport",
+      "dependencies": [
+        {
+          "name": "libdatachannel",
+          "default-features": false,
+          "features": [
+            "ws"
+          ]
+        },
+        "speexdsp"
+      ]
+    }
+  }
 }
