@@ -30,6 +30,7 @@ option(PIPECAT_BUILD_DOCS "Build the API reference with Doxygen" OFF)
 
 # Transports. Each needs its own dependencies, so they're only built when asked.
 option(PIPECAT_BUILD_DAILY "Build the Daily transport" OFF)
+option(PIPECAT_BUILD_WEBSOCKET "Build the WebSocket transport" OFF)
 
 include(GNUInstallDirs)
 
@@ -284,4 +285,7 @@ endif()
 #
 if(PIPECAT_BUILD_DAILY)
   add_subdirectory(transports/daily)
+endif()
+if(PIPECAT_BUILD_WEBSOCKET)
+  add_subdirectory(transports/websocket)
 endif()
