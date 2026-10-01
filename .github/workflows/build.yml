@@ -193,8 +193,25 @@ jobs:
   windows:
     name: Windows x86_64 (MSVC)
     runs-on: windows-latest
+    env:
+      # Where vcpkg keeps the packages it builds, cached between runs.
+      VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}\vcpkg-cache,readwrite
     steps:
       - uses: actions/checkout@v7
+
+      - name: Find the vcpkg version
+        run: |
+          New-Item -ItemType Directory -Force vcpkg-cache | Out-Null
+          "VCPKG_COMMIT=$(git -C $env:VCPKG_INSTALLATION_ROOT rev-parse HEAD)" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      # A new cache is saved when the manifest or vcpkg change. It starts from
+      # the last one, and vcpkg only builds the packages that changed.
+      - name: Cache vcpkg packages
+        uses: actions/cache@v6
+        with:
+          path: vcpkg-cache
+          key: vcpkg-windows-${{ hashFiles('vcpkg.json') }}-${{ env.VCPKG_COMMIT }}
+          restore-keys: vcpkg-windows-
 
       - name: Download Daily Core
         env:
