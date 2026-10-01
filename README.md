@@ -87,6 +87,14 @@ answer, with a callback or a `std::future`:
 auto weather = client.send_client_request("get-weather", {{"city", "SF"}}).get();
 ```
 
+## 💡 Examples
+
+- [text](examples/text): chat with a bot in the terminal.
+- [voice](examples/voice): talk with a bot using your microphone and speakers.
+
+They use the Daily transport. See [examples/README.md](examples/README.md) to
+build them and run them with a bot on your machine or on Pipecat Cloud.
+
 ## 🧵 Threading
 
 - `start_bot()`, `connect()` and `disconnect()` block the calling thread.

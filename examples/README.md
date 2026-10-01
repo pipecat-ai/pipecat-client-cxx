@@ -10,8 +10,9 @@
 
 ## Building
 
-First build and install the Pipecat C++ client with the Daily transport,
-following the transport's [README](../README.md).
+The examples use the Daily transport. First build and install the Pipecat C++
+client with it, see
+[Building transports](../README.md#-building-transports).
 
 The voice example also needs PortAudio:
 
