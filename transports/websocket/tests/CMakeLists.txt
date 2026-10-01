@@ -6,6 +6,7 @@
 
 add_executable(pipecat_websocket_tests
   test_frames.cpp
+  test_transport.cpp
 )
 
 set_target_properties(pipecat_websocket_tests PROPERTIES
@@ -19,8 +20,10 @@ target_include_directories(pipecat_websocket_tests PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/../src
 )
 
+# The tests run a fake bot with libdatachannel's WebSocket server.
 target_link_libraries(pipecat_websocket_tests PRIVATE
   pipecat::websocket
+  LibDataChannel::LibDataChannel
   GTest::gtest_main
 )
 
