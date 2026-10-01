@@ -1,0 +1,52 @@
+name: release
+
+# Creates the GitHub Release for a version tag, e.g. v1.0.0. Its notes are the
+# version's section of CHANGELOG.md, reformatted for GitHub by
+# scripts/release-changelog.py, and it comes with a source tarball whose
+# checksum never changes, for FetchContent. A tag that doesn't match the
+# version in CMakeLists.txt, or whose version has no changelog section, fails.
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check the version
+        run: |
+          version=$(sed -n 's/^project(pipecat VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
+          if [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "::error::$GITHUB_REF_NAME doesn't match version $version in CMakeLists.txt"
+            exit 1
+          fi
+
+      - name: Write the release notes
+        run: python3 scripts/release-changelog.py --no-heading "${GITHUB_REF_NAME#v}" > release-notes.md
+
+      - name: Make the source tarball
+        run: |
+          name="pipecat-client-cxx-${GITHUB_REF_NAME#v}"
+          git archive --format=tar.gz --prefix="$name/" -o "$name.tar.gz" HEAD
+          sha256sum "$name.tar.gz" > "$name.tar.gz.sha256"
+
+      # Running it again only updates the notes, so the tarball's checksum
+      # never changes.
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="$GITHUB_REF_NAME"
+          name="pipecat-client-cxx-${tag#v}"
+          if gh release view "$tag" > /dev/null 2>&1; then
+            gh release edit "$tag" --notes-file release-notes.md
+          else
+            gh release create "$tag" "$name.tar.gz" "$name.tar.gz.sha256" \
+              --verify-tag --title "$tag" --notes-file release-notes.md
+          fi
