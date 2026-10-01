@@ -16,7 +16,7 @@ It supports Linux (`x86_64` and `aarch64`), macOS (`aarch64`) and Windows
 ## 🌐 Transports
 
 `pipecat-client-cxx` needs a transport to connect to your Pipecat bot. These
-are the available transports (see [Building](#transports)):
+are the available transports (see [Building transports](#-building-transports)):
 
 - [Daily](transports/daily): connects to the bot's Daily room, using WebRTC.
 
@@ -143,23 +143,6 @@ cmake --preset vcpkg
 cmake --build build --config Release
 ```
 
-### Transports
-
-Add the option of each transport you want. The Daily transport, for example,
-also needs the [Daily Core C++ SDK](https://github.com/daily-co/daily-core-sdk)
-0.23.0 or newer: download it for your platform from its
-[releases](https://github.com/daily-co/daily-core-sdk/releases), unpack it and
-point `DailyCore_ROOT` to it:
-
-```bash
-cmake . -G Ninja -Bbuild -DCMAKE_BUILD_TYPE=Release \
-  -DPIPECAT_BUILD_DAILY=ON \
-  -DDailyCore_ROOT=/path/to/daily-core-sdk
-ninja -C build
-```
-
-See each transport's README for more, e.g. [Daily](transports/daily).
-
 ### Cross-compiling (Linux aarch64)
 
 You need an `aarch64` cross compiler (`g++-aarch64-linux-gnu` on Debian and
@@ -184,17 +167,8 @@ find_package(pipecat 1.0 REQUIRED)
 target_link_libraries(my_app PRIVATE pipecat::pipecat)
 ```
 
-Transports are components of the package. Ask for the ones you built, which
-also finds their dependencies:
-
-```cmake
-find_package(pipecat 1.0 REQUIRED COMPONENTS daily)
-target_link_libraries(my_app PRIVATE pipecat::daily)
-```
-
 You can also include this repository with `add_subdirectory()` or
-`FetchContent`, setting the transport options before, and link to the same
-targets.
+`FetchContent` and link to the same `pipecat::pipecat` target.
 
 A `pipecat.pc` file is also installed for Meson and other build systems that
 use pkg-config. Add `/path/to/pipecat/lib/pkgconfig` to `PKG_CONFIG_PATH` and
@@ -205,6 +179,33 @@ pipecat_dep = dependency('pipecat', version: '>= 1.0')
 ```
 
 Meson projects need `cpp_std=c++17` or newer.
+
+## 🧩 Building transports
+
+Transports are off by default, since each needs its own dependencies. Turn on
+the ones you want when configuring, and they're built, tested and installed
+with the client:
+
+```bash
+cmake . -G Ninja -Bbuild -DCMAKE_BUILD_TYPE=Release \
+  -DPIPECAT_BUILD_DAILY=ON \
+  -DDailyCore_ROOT=/path/to/daily-core-sdk
+```
+
+| Transport | Option | Component | Needs |
+| --- | --- | --- | --- |
+| [Daily](transports/daily) | `PIPECAT_BUILD_DAILY` | `daily` | The [Daily Core C++ SDK](https://github.com/daily-co/daily-core-sdk) 0.23.0 or newer, with `DailyCore_ROOT` pointing to it |
+
+Then use them as components of the package, which also finds their
+dependencies. Each component's target is `pipecat::<component>`:
+
+```cmake
+find_package(pipecat 1.0 REQUIRED COMPONENTS daily)
+target_link_libraries(my_app PRIVATE pipecat::daily)
+```
+
+With `add_subdirectory()` or `FetchContent`, set the options before adding
+this repository.
 
 ## 🔌 Writing a transport
 
