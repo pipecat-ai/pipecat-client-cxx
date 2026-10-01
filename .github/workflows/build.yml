@@ -25,15 +25,18 @@ jobs:
           - name: Linux x86_64 (GCC)
             os: ubuntu-24.04
             cxx: g++
+            transports: true
             daily_core: linux-x86_64
           - name: Linux x86_64 (Clang)
             os: ubuntu-24.04
             cxx: clang++
+            transports: true
             daily_core: linux-x86_64
             packages: clang
           - name: Linux aarch64 (GCC)
             os: ubuntu-24.04-arm
             cxx: g++
+            transports: true
             daily_core: linux-arm64
           # Oldest supported toolchain: GCC 9, CMake 3.16, nlohmann_json 3.7.
           # Also checks that the client builds without any transport.
@@ -44,6 +47,7 @@ jobs:
           - name: macOS aarch64 (Apple Clang)
             os: macos-latest
             cxx: clang++
+            transports: true
             daily_core: macos-arm64
     steps:
       - name: Install dependencies (Linux)
@@ -53,17 +57,19 @@ jobs:
           $SUDO apt-get update
           $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             ca-certificates cmake g++ git make meson ninja-build pkg-config \
-            libcurl4-openssl-dev nlohmann-json3-dev portaudio19-dev unzip \
-            ${{ matrix.packages }}
+            libcurl4-openssl-dev libspeexdsp-dev libssl-dev nlohmann-json3-dev \
+            portaudio19-dev unzip ${{ matrix.packages }}
 
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
-        run: brew install meson nlohmann-json ninja pkgconf portaudio
+        run: |
+          brew install meson nlohmann-json ninja openssl@3 pkgconf portaudio speexdsp
+          echo "OPENSSL_ROOT_DIR=$(brew --prefix openssl@3)" >> "$GITHUB_ENV"
 
       - uses: actions/checkout@v7
 
       - name: Download Daily Core
-        if: matrix.daily_core
+        if: matrix.transports
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -78,7 +84,8 @@ jobs:
           -DCMAKE_BUILD_TYPE=Release
           -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
           -DPIPECAT_WARNINGS_AS_ERRORS=ON
-          -DPIPECAT_BUILD_DAILY=${{ matrix.daily_core && 'ON' || 'OFF' }}
+          -DPIPECAT_BUILD_DAILY=${{ matrix.transports && 'ON' || 'OFF' }}
+          -DPIPECAT_BUILD_WEBSOCKET=${{ matrix.transports && 'ON' || 'OFF' }}
 
       - name: Build
         run: cmake --build build
@@ -107,7 +114,7 @@ jobs:
           ./build-meson/package_test
 
       - name: Build against installed package (CMake, Daily)
-        if: matrix.daily_core
+        if: matrix.transports
         run: |
           cmake -S transports/daily/tests/package -B build-package-daily -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
@@ -116,8 +123,18 @@ jobs:
           cmake --build build-package-daily
           ./build-package-daily/package_test
 
+      - name: Build against installed package (CMake, WebSocket)
+        if: matrix.transports
+        run: |
+          cmake -S transports/websocket/tests/package -B build-package-websocket -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
+            -DCMAKE_PREFIX_PATH="$PWD/install"
+          cmake --build build-package-websocket
+          ./build-package-websocket/package_test
+
       - name: Build the examples
-        if: matrix.daily_core
+        if: matrix.transports
         run: |
           for example in text voice; do
             cmake -S "examples/$example" -B "build-$example" -G Ninja \
@@ -135,7 +152,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-            clang cmake ninja-build libcurl4-openssl-dev nlohmann-json3-dev
+            clang cmake ninja-build libcurl4-openssl-dev libspeexdsp-dev libssl-dev \
+            nlohmann-json3-dev
 
       # ThreadSanitizer in Clang 18 fails to start with the runner's default
       # address space randomization.
@@ -144,14 +162,19 @@ jobs:
 
       - uses: actions/checkout@v7
 
+      # The downloaded libdatachannel and its C dependencies are instrumented
+      # too.
       - name: Configure
         run: >
           cmake -S . -B build -G Ninja
           -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          -DCMAKE_C_COMPILER=clang
           -DCMAKE_CXX_COMPILER=clang++
+          "-DCMAKE_C_FLAGS=-fsanitize=thread -fno-omit-frame-pointer"
           "-DCMAKE_CXX_FLAGS=-fsanitize=thread -fno-omit-frame-pointer"
           -DCMAKE_EXE_LINKER_FLAGS=-fsanitize=thread
           -DPIPECAT_WARNINGS_AS_ERRORS=ON
+          -DPIPECAT_BUILD_WEBSOCKET=ON
 
       - name: Build
         run: cmake --build build
@@ -161,6 +184,11 @@ jobs:
         env:
           TSAN_OPTIONS: halt_on_error=1
         run: ./build/tests/pipecat_tests --gtest_repeat=5 --gtest_brief=1
+
+      - name: Test (WebSocket)
+        env:
+          TSAN_OPTIONS: halt_on_error=1 suppressions=${{ github.workspace }}/transports/websocket/tests/tsan.supp
+        run: ./build/transports/websocket/tests/pipecat_websocket_tests --gtest_repeat=5 --gtest_brief=1
 
   windows:
     name: Windows x86_64 (MSVC)
@@ -180,7 +208,8 @@ jobs:
       - name: Configure
         run: |
           $env:VCPKG_ROOT = $env:VCPKG_INSTALLATION_ROOT
-          cmake --preset vcpkg -DPIPECAT_WARNINGS_AS_ERRORS=ON -DPIPECAT_BUILD_DAILY=ON
+          cmake --preset vcpkg -DPIPECAT_WARNINGS_AS_ERRORS=ON -DPIPECAT_BUILD_DAILY=ON `
+            -DPIPECAT_BUILD_WEBSOCKET=ON -DVCPKG_MANIFEST_FEATURES=websocket
 
       - name: Build
         run: cmake --build build --config Release

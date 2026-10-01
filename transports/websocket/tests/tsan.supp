@@ -1,0 +1,6 @@
+# ThreadSanitizer suppressions for the WebSocket transport's tests.
+
+# libdatachannel takes two locks of a connection in one order when the
+# WebSocket opens, and in the other when it closes. Both never happen at the
+# same time.
+deadlock:rtc::impl::WebSocket::initWsTransport

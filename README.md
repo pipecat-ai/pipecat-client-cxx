@@ -19,6 +19,7 @@ It supports Linux (`x86_64` and `aarch64`), macOS (`aarch64`) and Windows
 are the available transports (see [Building transports](#-building-transports)):
 
 - [Daily](transports/daily): connects to the bot's Daily room, using WebRTC.
+- [WebSocket](transports/websocket): connects to the bot's WebSocket.
 
 You can also [write your own](#-writing-a-transport).
 
@@ -197,12 +198,14 @@ with the client:
 ```bash
 cmake . -G Ninja -Bbuild -DCMAKE_BUILD_TYPE=Release \
   -DPIPECAT_BUILD_DAILY=ON \
-  -DDailyCore_ROOT=/path/to/daily-core-sdk
+  -DDailyCore_ROOT=/path/to/daily-core-sdk \
+  -DPIPECAT_BUILD_WEBSOCKET=ON
 ```
 
 | Transport | Option | Component | Needs |
 | --- | --- | --- | --- |
 | [Daily](transports/daily) | `PIPECAT_BUILD_DAILY` | `daily` | The [Daily Core C++ SDK](https://github.com/daily-co/daily-core-sdk) 0.23.0 or newer, with `DailyCore_ROOT` pointing to it |
+| [WebSocket](transports/websocket) | `PIPECAT_BUILD_WEBSOCKET` | `websocket` | [libdatachannel](https://github.com/paullouisageneau/libdatachannel) 0.24 or newer, which CMake downloads if it's not installed (with OpenSSL), and [speexdsp](https://github.com/xiph/speexdsp) |
 
 Then use them as components of the package, which also finds their
 dependencies. Each component's target is `pipecat::<component>`:

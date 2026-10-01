@@ -13,7 +13,8 @@ current Pipecat bots speak, and in line with the JavaScript client
 were never tagged (0.x), see [Migrating from 0.x](#migrating-from-0x).
 
 The Daily transport is now part of this repository, see
-[Daily transport](#daily-transport).
+[Daily transport](#daily-transport), and there's a new
+[WebSocket transport](#websocket-transport).
 
 ### Added
 
@@ -134,6 +135,22 @@ and was rewritten for this version, like the client.
 - Rooms that don't need a token can be joined without one.
 - A second transport no longer breaks the first one, and Daily Core is shut
   down after the last transport is destroyed.
+
+### WebSocket transport
+
+#### Added
+
+- `pipecat::WebSocketTransport`, in `<pipecat/websocket/transport.h>`, built
+  with `-DPIPECAT_BUILD_WEBSOCKET=ON`. It connects to bots that use Pipecat's
+  `ProtobufFrameSerializer`, like the development runner's
+  `python bot.py -t websocket`, with the `wsUrl` and `token` start endpoints
+  return. `WebSocketTransportOptions` sets the audio sample rate and channels.
+- The bot's audio is converted to the app's sample rate and channels with
+  speexdsp, and dropped when the bot is interrupted.
+- The `websocket` component of the CMake package
+  (`find_package(pipecat COMPONENTS websocket)` and `pipecat::websocket`),
+  which also finds libdatachannel and speexdsp. libdatachannel is downloaded
+  if it's not installed.
 
 ### Migrating from 0.x
 

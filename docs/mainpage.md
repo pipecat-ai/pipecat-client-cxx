@@ -124,6 +124,7 @@ The SDK comes with these transports. Each is a separate library, built only
 when you ask for it:
 
 - [Daily](@ref daily): connects to bots in a Daily room, using WebRTC.
+- [WebSocket](@ref websocket): connects to bots over a WebSocket.
 
 ## Connecting
 
