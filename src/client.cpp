@@ -98,6 +98,8 @@ std::array<int, 3> parse_version(const std::string& version) {
 
 class PipecatClient::Impl : public TransportObserver {
    public:
+    // Connection
+
     explicit Impl(PipecatClientOptions options);
 
     // Disconnects, runs the callbacks still queued and stops the threads.
@@ -112,12 +114,22 @@ class PipecatClient::Impl : public TransportObserver {
     TransportState state() const;
     bool connected() const;
     Transport& transport() { return *_transport; }
+
+    // Audio
+
     int32_t send_user_audio(const int16_t* frames, size_t num_frames);
     int32_t read_bot_audio(int16_t* frames, size_t num_frames);
+
+    // Messages to the bot
 
     void
     send_text(const std::string& content, const rtvi::SendTextOptions& options);
     void send_client_message(const std::string& type, const json& data);
+    void disconnect_bot();
+    void send_dtmf(const std::string& buttons);
+
+    // Client requests
+
     void send_client_request(
             const std::string& type,
             const json& data,
@@ -129,8 +141,9 @@ class PipecatClient::Impl : public TransportObserver {
             const json& data,
             std::chrono::milliseconds timeout
     );
-    void disconnect_bot();
-    void send_dtmf(const std::string& buttons);
+
+    // Function calls
+
     void register_function_call_handler(
             const std::string& function_name,
             FunctionCallHandler handler
@@ -138,7 +151,8 @@ class PipecatClient::Impl : public TransportObserver {
     void unregister_function_call_handler(const std::string& function_name);
     void unregister_all_function_call_handlers();
 
-    // TransportObserver
+    // Transport events, from TransportObserver
+
     void on_transport_message(const json& message) override;
     void on_bot_connected(const Participant& bot) override;
     void on_bot_disconnected(const Participant& bot) override;
@@ -165,6 +179,65 @@ class PipecatClient::Impl : public TransportObserver {
         Impl* impl = nullptr;
     };
 
+    // Connection
+
+    // Expects _mutex to be held.
+    void set_state_locked(TransportState state);
+    void check_can_start_locked() const;
+
+    bool is_cancelled(uint64_t session) const;
+
+    // Disconnects, but only if the session is still `session`.
+    void disconnect_session(std::optional<uint64_t> session);
+
+    // Disconnects after connect() fails and moves to the Error state, unless
+    // the connection was already cancelled. `lock` must hold _mutex, so the
+    // caller can check why it failed without letting other events in.
+    void fail_connect(uint64_t session, std::unique_lock<std::mutex> lock);
+
+    // Ends the session: cancels the pending requests, disconnects the
+    // transport and moves to `end_state`. `lock` must hold _mutex.
+    void
+    end_session(std::unique_lock<std::mutex> lock, TransportState end_state);
+
+    // Messages to the bot
+
+    // Sends a message if the bot is ready and it's not too large.
+    void send(const rtvi::Message& message);
+
+    // Client requests
+
+    // Sends a client request, and calls `complete` once with its answer, a
+    // timeout or a disconnection. Throws if it can't be sent, unless a
+    // disconnection already completed it, so the failure is reported once.
+    void send_request(
+            const rtvi::Message& message,
+            std::chrono::milliseconds timeout,
+            RequestCompletion complete
+    );
+    void
+    complete_request(const std::string& id, const ClientResponse& response);
+    // Removes all pending requests. Expects _mutex to be held. Pass the result
+    // to cancel_requests() once it's released.
+    std::vector<RequestCompletion> take_requests_locked();
+    static void cancel_requests(const std::vector<RequestCompletion>& requests);
+    // Fails requests that timed out. Runs on its own thread.
+    void run_request_timer();
+
+    // Function calls
+
+    void run_function_call_handler(
+            const rtvi::LLMFunctionCallInProgressData& call
+    );
+    void send_function_call_result(const rtvi::LLMFunctionCallResultData& data);
+
+    // Transport events
+
+    void handle_message(const rtvi::Message& message);
+    void handle_bot_ready(const rtvi::BotReadyData& data);
+
+    // Callbacks
+
     // Queues a callback on the event loop. notify_locked() expects _mutex
     // to be held.
     void notify(Callback callback);
@@ -187,58 +260,13 @@ class PipecatClient::Impl : public TransportObserver {
 
     void report_error(const std::string& error, bool fatal);
 
-    // Expects _mutex to be held.
-    void set_state_locked(TransportState state);
-    void check_can_start_locked() const;
-
-    bool is_cancelled(uint64_t session) const;
-
-    // Disconnects, but only if the session is still `session`.
-    void disconnect_session(std::optional<uint64_t> session);
-
-    // Disconnects after connect() fails and moves to the Error state, unless
-    // the connection was already cancelled. `lock` must hold _mutex, so the
-    // caller can check why it failed without letting other events in.
-    void fail_connect(uint64_t session, std::unique_lock<std::mutex> lock);
-
-    // Ends the session: cancels the pending requests, disconnects the
-    // transport and moves to `end_state`. `lock` must hold _mutex.
-    void
-    end_session(std::unique_lock<std::mutex> lock, TransportState end_state);
-
-    void handle_message(const rtvi::Message& message);
-    void handle_bot_ready(const rtvi::BotReadyData& data);
-
-    // Sends a message if the bot is ready and it's not too large.
-    void send(const rtvi::Message& message);
-
-    // Sends a client request, and calls `complete` once with its answer, a
-    // timeout or a disconnection. Throws if it can't be sent, unless a
-    // disconnection already completed it, so the failure is reported once.
-    void send_request(
-            const rtvi::Message& message,
-            std::chrono::milliseconds timeout,
-            RequestCompletion complete
-    );
-    void
-    complete_request(const std::string& id, const ClientResponse& response);
-    // Removes all pending requests. Expects _mutex to be held. Pass the result
-    // to cancel_requests() once it's released.
-    std::vector<RequestCompletion> take_requests_locked();
-    static void cancel_requests(const std::vector<RequestCompletion>& requests);
-    // Fails requests that timed out. Runs on its own thread.
-    void run_request_timer();
-
-    void run_function_call_handler(
-            const rtvi::LLMFunctionCallInProgressData& call
-    );
-    void send_function_call_result(const rtvi::LLMFunctionCallResultData& data);
-
+    // Set from the options, and never changed.
     PipecatClientCallbacks* _callbacks;
     bool _disconnect_on_bot_disconnect;
     std::chrono::milliseconds _connect_timeout;
     rtvi::AboutClientData _about;
 
+    // Guarded by _mutex.
     mutable std::mutex _mutex;
     // Notified when the state or the pending requests change, and when the
     // client is destroyed.
@@ -249,25 +277,36 @@ class PipecatClient::Impl : public TransportObserver {
     // Incremented by start_bot(), connect() and every disconnection, so work
     // in progress can tell it was cancelled.
     uint64_t _session = 0;
+    // What the bot sent when it became ready.
     std::optional<rtvi::BotReadyData> _bot_ready;
+    // Client requests waiting for an answer, by message ID.
     std::map<std::string, PendingRequest> _requests;
+    // By function name.
     std::map<std::string, FunctionCallHandler> _function_call_handlers;
     // start_bot() and connect() fail, and the request timer stops, once the
     // destructor runs.
     bool _destroying = false;
 
-    // Serializes transport initialize(), connect() and disconnect() calls.
+    // Guarded by _transport_mutex, which makes transport initialize(),
+    // connect() and disconnect() calls run one at a time.
     std::mutex _transport_mutex;
     bool _initialized = false;
 
+    // Callbacks run on _loop, one at a time. _request_timer fails client
+    // requests that time out.
+    EventLoop _loop;
+    std::thread _request_timer;
+
     std::shared_ptr<Alive> _alive = std::make_shared<Alive>();
 
-    std::thread _request_timer;
-    EventLoop _loop;
     // Destroyed first, while the rest is still alive, since the transport can
     // report events while it shuts down.
     std::unique_ptr<Transport> _transport;
 };
+
+//
+// Connection
+//
 
 PipecatClient::Impl::Impl(PipecatClientOptions options)
     : _callbacks(options.callbacks),
@@ -526,6 +565,35 @@ bool PipecatClient::Impl::connected() const {
     return is_connected(_state);
 }
 
+void PipecatClient::Impl::set_state_locked(TransportState state) {
+    if (_state == state) {
+        return;
+    }
+    _state = state;
+    _cv.notify_all();
+    notify_locked([state](PipecatClientCallbacks& c) {
+        c.on_transport_state_changed(state);
+    });
+}
+
+void PipecatClient::Impl::check_can_start_locked() const {
+    if (_destroying) {
+        throw PipecatError("Client is being destroyed");
+    }
+    if (is_busy(_state)) {
+        throw BotAlreadyStartedError();
+    }
+}
+
+bool PipecatClient::Impl::is_cancelled(uint64_t session) const {
+    std::lock_guard<std::mutex> lock(_mutex);
+    return session != _session;
+}
+
+//
+// Audio
+//
+
 int32_t
 PipecatClient::Impl::send_user_audio(const int16_t* frames, size_t num_frames) {
     if (!connected()) {
@@ -543,216 +611,7 @@ PipecatClient::Impl::read_bot_audio(int16_t* frames, size_t num_frames) {
 }
 
 //
-// TransportObserver. Called on transport threads, so only queue work.
-//
-
-void PipecatClient::Impl::on_transport_message(const json& raw) {
-    rtvi::Message message;
-    try {
-        message = raw.get<rtvi::Message>();
-        if (message.label != rtvi::MESSAGE_LABEL) {
-            return;
-        }
-        handle_message(message);
-    } catch (const std::exception& e) {
-        std::string type = message.type.empty() ? "unknown" : message.type;
-        report_error("Invalid RTVI message (" + type + "): " + e.what(), false);
-    }
-}
-
-void PipecatClient::Impl::on_bot_connected(const Participant& bot) {
-    notify([bot](PipecatClientCallbacks& c) { c.on_bot_connected(bot); });
-}
-
-void PipecatClient::Impl::on_bot_disconnected(const Participant& bot) {
-    std::lock_guard<std::mutex> lock(_mutex);
-    notify_locked([bot](PipecatClientCallbacks& c) {
-        c.on_bot_disconnected(bot);
-    });
-    if (_disconnect_on_bot_disconnect) {
-        // After the callback, and only if nothing reconnected in between.
-        uint64_t session = _session;
-        _loop.post([this, session] { disconnect_session(session); });
-    }
-}
-
-void PipecatClient::Impl::on_participant_joined(const Participant& participant
-) {
-    notify([participant](PipecatClientCallbacks& c) {
-        c.on_participant_joined(participant);
-    });
-}
-
-void PipecatClient::Impl::on_participant_left(const Participant& participant) {
-    notify([participant](PipecatClientCallbacks& c) {
-        c.on_participant_left(participant);
-    });
-}
-
-void PipecatClient::Impl::on_transport_error(
-        const std::string& error,
-        bool fatal
-) {
-    report_error(error, fatal);
-}
-
-void PipecatClient::Impl::on_transport_disconnected() {
-    std::vector<RequestCompletion> requests;
-    {
-        std::lock_guard<std::mutex> lock(_mutex);
-        if (!is_started(_state)) {
-            return;
-        }
-        bool was_connected = is_connected(_state);
-        ++_session;
-        set_state_locked(TransportState::Disconnected);
-        if (was_connected) {
-            notify_locked([](PipecatClientCallbacks& c) { c.on_disconnected(); }
-            );
-        }
-        requests = take_requests_locked();
-    }
-    cancel_requests(requests);
-}
-
-//
-// Messages
-//
-
-void PipecatClient::Impl::handle_message(const rtvi::Message& message) {
-    using rtvi::MessageType;
-    using C = PipecatClientCallbacks;
-
-    const json& data = message.data;
-
-    // Current bots still send this deprecated message along with bot-output,
-    // which replaces it.
-    if (message.type == "bot-transcription") {
-        return;
-    }
-
-    auto type = rtvi::parse_message_type(message.type);
-    if (!type) {
-        notify([message](C& c) { c.on_unhandled_message(message); });
-        return;
-    }
-
-    switch (*type) {
-    case MessageType::BotReady:
-        handle_bot_ready(data.get<rtvi::BotReadyData>());
-        break;
-    case MessageType::Error:
-        notify_data(data, &C::on_error);
-        break;
-    case MessageType::ErrorResponse: {
-        auto error = data.get<rtvi::ErrorData>();
-        ClientResponse response;
-        response.error = error.error;
-        complete_request(message.id, response);
-        notify([error](C& c) { c.on_message_error(error); });
-        break;
-    }
-    case MessageType::ServerMessage:
-        notify([data](C& c) { c.on_server_message(data); });
-        break;
-    case MessageType::ServerResponse: {
-        ClientResponse response;
-        response.data = data.get<rtvi::ClientMessageData>().data;
-        complete_request(message.id, response);
-        break;
-    }
-    case MessageType::Metrics:
-        notify_data(data, &C::on_metrics);
-        break;
-    case MessageType::UserStartedSpeaking:
-        notify_event(&C::on_user_started_speaking);
-        break;
-    case MessageType::UserStoppedSpeaking:
-        notify_event(&C::on_user_stopped_speaking);
-        break;
-    case MessageType::BotStartedSpeaking:
-        notify_event(&C::on_bot_started_speaking);
-        break;
-    case MessageType::BotStoppedSpeaking:
-        notify_event(&C::on_bot_stopped_speaking);
-        break;
-    case MessageType::BotInterrupted:
-        notify_event(&C::on_bot_interrupted);
-        break;
-    case MessageType::UserMuteStarted:
-        notify_event(&C::on_user_mute_started);
-        break;
-    case MessageType::UserMuteStopped:
-        notify_event(&C::on_user_mute_stopped);
-        break;
-    case MessageType::UserTranscription:
-        notify_data(data, &C::on_user_transcript);
-        break;
-    case MessageType::UserLLMText:
-        notify_data(data, &C::on_user_llm_text);
-        break;
-    case MessageType::BotOutput:
-        notify_data(data, &C::on_bot_output);
-        break;
-    case MessageType::BotLLMText:
-        notify_data(data, &C::on_bot_llm_text);
-        break;
-    case MessageType::BotLLMStarted:
-        notify_event(&C::on_bot_llm_started);
-        break;
-    case MessageType::BotLLMStopped:
-        notify_event(&C::on_bot_llm_stopped);
-        break;
-    case MessageType::BotLLMSearchResponse:
-        notify_data(data, &C::on_bot_llm_search_response);
-        break;
-    case MessageType::BotTTSText:
-        notify_data(data, &C::on_bot_tts_text);
-        break;
-    case MessageType::BotTTSStarted:
-        notify_event(&C::on_bot_tts_started);
-        break;
-    case MessageType::BotTTSStopped:
-        notify_event(&C::on_bot_tts_stopped);
-        break;
-    case MessageType::LLMFunctionCallInProgress: {
-        auto call = data.get<rtvi::LLMFunctionCallInProgressData>();
-        run_function_call_handler(call);
-        notify([call](C& c) { c.on_llm_function_call_in_progress(call); });
-        break;
-    }
-    case MessageType::LLMFunctionCallStarted:
-        notify_data(data, &C::on_llm_function_call_started);
-        break;
-    case MessageType::LLMFunctionCallStopped:
-        notify_data(data, &C::on_llm_function_call_stopped);
-        break;
-    case MessageType::ClientReady:
-    case MessageType::DisconnectBot:
-    case MessageType::ClientMessage:
-    case MessageType::SendText:
-    case MessageType::DTMF:
-    case MessageType::LLMFunctionCallResult:
-        // Client-to-server messages, not expected from the bot.
-        notify([message](C& c) { c.on_unhandled_message(message); });
-        break;
-    }
-}
-
-void PipecatClient::Impl::handle_bot_ready(const rtvi::BotReadyData& data) {
-    std::lock_guard<std::mutex> lock(_mutex);
-    if (_state == TransportState::Connecting ||
-        _state == TransportState::Connected) {
-        _bot_ready = data;
-        set_state_locked(TransportState::Ready);
-        notify_locked([data](PipecatClientCallbacks& c) {
-            c.on_bot_ready(data);
-        });
-    }
-}
-
-//
-// Messaging
+// Messages to the bot
 //
 
 void PipecatClient::Impl::send(const rtvi::Message& message) {
@@ -785,6 +644,41 @@ void PipecatClient::Impl::send_client_message(
 ) {
     send(rtvi::Message::client_message(type, data));
 }
+
+void PipecatClient::Impl::disconnect_bot() {
+    send(rtvi::Message::disconnect_bot());
+}
+
+void PipecatClient::Impl::send_dtmf(const std::string& buttons) {
+    if (buttons.empty() ||
+        buttons.find_first_not_of("0123456789*#") != std::string::npos) {
+        throw PipecatError(
+                "Invalid DTMF keys \"" + buttons +
+                "\", only 0-9, * and # are allowed"
+        );
+    }
+
+    std::array<int, 3> version;
+    {
+        std::lock_guard<std::mutex> lock(_mutex);
+        if (_state != TransportState::Ready) {
+            throw BotNotReadyError();
+        }
+        version = parse_version(_bot_ready->version);
+    }
+
+    if (version[0] < 2 || (version[0] == 2 && version[1] < 1)) {
+        throw UnsupportedFeatureError(
+                "DTMF", "the bot needs RTVI 2.1 or newer"
+        );
+    }
+
+    send(rtvi::Message::dtmf(buttons));
+}
+
+//
+// Client requests
+//
 
 void PipecatClient::Impl::send_client_request(
         const std::string& type,
@@ -832,41 +726,6 @@ std::future<json> PipecatClient::Impl::send_client_request(
     send_request(rtvi::Message::client_message(type, data), timeout, complete);
     return future;
 }
-
-void PipecatClient::Impl::disconnect_bot() {
-    send(rtvi::Message::disconnect_bot());
-}
-
-void PipecatClient::Impl::send_dtmf(const std::string& buttons) {
-    if (buttons.empty() ||
-        buttons.find_first_not_of("0123456789*#") != std::string::npos) {
-        throw PipecatError(
-                "Invalid DTMF keys \"" + buttons +
-                "\", only 0-9, * and # are allowed"
-        );
-    }
-
-    std::array<int, 3> version;
-    {
-        std::lock_guard<std::mutex> lock(_mutex);
-        if (_state != TransportState::Ready) {
-            throw BotNotReadyError();
-        }
-        version = parse_version(_bot_ready->version);
-    }
-
-    if (version[0] < 2 || (version[0] == 2 && version[1] < 1)) {
-        throw UnsupportedFeatureError(
-                "DTMF", "the bot needs RTVI 2.1 or newer"
-        );
-    }
-
-    send(rtvi::Message::dtmf(buttons));
-}
-
-//
-// Client requests
-//
 
 void PipecatClient::Impl::send_request(
         const rtvi::Message& message,
@@ -1057,7 +916,212 @@ void PipecatClient::Impl::send_function_call_result(
 }
 
 //
-// Helpers
+// Transport events. Called on transport threads, so they only queue work.
+//
+
+void PipecatClient::Impl::on_transport_message(const json& raw) {
+    rtvi::Message message;
+    try {
+        message = raw.get<rtvi::Message>();
+        if (message.label != rtvi::MESSAGE_LABEL) {
+            return;
+        }
+        handle_message(message);
+    } catch (const std::exception& e) {
+        std::string type = message.type.empty() ? "unknown" : message.type;
+        report_error("Invalid RTVI message (" + type + "): " + e.what(), false);
+    }
+}
+
+void PipecatClient::Impl::on_bot_connected(const Participant& bot) {
+    notify([bot](PipecatClientCallbacks& c) { c.on_bot_connected(bot); });
+}
+
+void PipecatClient::Impl::on_bot_disconnected(const Participant& bot) {
+    std::lock_guard<std::mutex> lock(_mutex);
+    notify_locked([bot](PipecatClientCallbacks& c) {
+        c.on_bot_disconnected(bot);
+    });
+    if (_disconnect_on_bot_disconnect) {
+        // After the callback, and only if nothing reconnected in between.
+        uint64_t session = _session;
+        _loop.post([this, session] { disconnect_session(session); });
+    }
+}
+
+void PipecatClient::Impl::on_participant_joined(const Participant& participant
+) {
+    notify([participant](PipecatClientCallbacks& c) {
+        c.on_participant_joined(participant);
+    });
+}
+
+void PipecatClient::Impl::on_participant_left(const Participant& participant) {
+    notify([participant](PipecatClientCallbacks& c) {
+        c.on_participant_left(participant);
+    });
+}
+
+void PipecatClient::Impl::on_transport_error(
+        const std::string& error,
+        bool fatal
+) {
+    report_error(error, fatal);
+}
+
+void PipecatClient::Impl::on_transport_disconnected() {
+    std::vector<RequestCompletion> requests;
+    {
+        std::lock_guard<std::mutex> lock(_mutex);
+        if (!is_started(_state)) {
+            return;
+        }
+        bool was_connected = is_connected(_state);
+        ++_session;
+        set_state_locked(TransportState::Disconnected);
+        if (was_connected) {
+            notify_locked([](PipecatClientCallbacks& c) { c.on_disconnected(); }
+            );
+        }
+        requests = take_requests_locked();
+    }
+    cancel_requests(requests);
+}
+
+void PipecatClient::Impl::handle_message(const rtvi::Message& message) {
+    using rtvi::MessageType;
+    using C = PipecatClientCallbacks;
+
+    const json& data = message.data;
+
+    // Current bots still send this deprecated message along with bot-output,
+    // which replaces it.
+    if (message.type == "bot-transcription") {
+        return;
+    }
+
+    auto type = rtvi::parse_message_type(message.type);
+    if (!type) {
+        notify([message](C& c) { c.on_unhandled_message(message); });
+        return;
+    }
+
+    switch (*type) {
+    case MessageType::BotReady:
+        handle_bot_ready(data.get<rtvi::BotReadyData>());
+        break;
+    case MessageType::Error:
+        notify_data(data, &C::on_error);
+        break;
+    case MessageType::ErrorResponse: {
+        auto error = data.get<rtvi::ErrorData>();
+        ClientResponse response;
+        response.error = error.error;
+        complete_request(message.id, response);
+        notify([error](C& c) { c.on_message_error(error); });
+        break;
+    }
+    case MessageType::ServerMessage:
+        notify([data](C& c) { c.on_server_message(data); });
+        break;
+    case MessageType::ServerResponse: {
+        ClientResponse response;
+        response.data = data.get<rtvi::ClientMessageData>().data;
+        complete_request(message.id, response);
+        break;
+    }
+    case MessageType::Metrics:
+        notify_data(data, &C::on_metrics);
+        break;
+    case MessageType::UserStartedSpeaking:
+        notify_event(&C::on_user_started_speaking);
+        break;
+    case MessageType::UserStoppedSpeaking:
+        notify_event(&C::on_user_stopped_speaking);
+        break;
+    case MessageType::BotStartedSpeaking:
+        notify_event(&C::on_bot_started_speaking);
+        break;
+    case MessageType::BotStoppedSpeaking:
+        notify_event(&C::on_bot_stopped_speaking);
+        break;
+    case MessageType::BotInterrupted:
+        notify_event(&C::on_bot_interrupted);
+        break;
+    case MessageType::UserMuteStarted:
+        notify_event(&C::on_user_mute_started);
+        break;
+    case MessageType::UserMuteStopped:
+        notify_event(&C::on_user_mute_stopped);
+        break;
+    case MessageType::UserTranscription:
+        notify_data(data, &C::on_user_transcript);
+        break;
+    case MessageType::UserLLMText:
+        notify_data(data, &C::on_user_llm_text);
+        break;
+    case MessageType::BotOutput:
+        notify_data(data, &C::on_bot_output);
+        break;
+    case MessageType::BotLLMText:
+        notify_data(data, &C::on_bot_llm_text);
+        break;
+    case MessageType::BotLLMStarted:
+        notify_event(&C::on_bot_llm_started);
+        break;
+    case MessageType::BotLLMStopped:
+        notify_event(&C::on_bot_llm_stopped);
+        break;
+    case MessageType::BotLLMSearchResponse:
+        notify_data(data, &C::on_bot_llm_search_response);
+        break;
+    case MessageType::BotTTSText:
+        notify_data(data, &C::on_bot_tts_text);
+        break;
+    case MessageType::BotTTSStarted:
+        notify_event(&C::on_bot_tts_started);
+        break;
+    case MessageType::BotTTSStopped:
+        notify_event(&C::on_bot_tts_stopped);
+        break;
+    case MessageType::LLMFunctionCallInProgress: {
+        auto call = data.get<rtvi::LLMFunctionCallInProgressData>();
+        run_function_call_handler(call);
+        notify([call](C& c) { c.on_llm_function_call_in_progress(call); });
+        break;
+    }
+    case MessageType::LLMFunctionCallStarted:
+        notify_data(data, &C::on_llm_function_call_started);
+        break;
+    case MessageType::LLMFunctionCallStopped:
+        notify_data(data, &C::on_llm_function_call_stopped);
+        break;
+    case MessageType::ClientReady:
+    case MessageType::DisconnectBot:
+    case MessageType::ClientMessage:
+    case MessageType::SendText:
+    case MessageType::DTMF:
+    case MessageType::LLMFunctionCallResult:
+        // Client-to-server messages, not expected from the bot.
+        notify([message](C& c) { c.on_unhandled_message(message); });
+        break;
+    }
+}
+
+void PipecatClient::Impl::handle_bot_ready(const rtvi::BotReadyData& data) {
+    std::lock_guard<std::mutex> lock(_mutex);
+    if (_state == TransportState::Connecting ||
+        _state == TransportState::Connected) {
+        _bot_ready = data;
+        set_state_locked(TransportState::Ready);
+        notify_locked([data](PipecatClientCallbacks& c) {
+            c.on_bot_ready(data);
+        });
+    }
+}
+
+//
+// Callbacks
 //
 
 void PipecatClient::Impl::notify(Callback callback) {
@@ -1084,31 +1148,6 @@ void PipecatClient::Impl::report_error(const std::string& error, bool fatal) {
     data.error = error;
     data.fatal = fatal;
     notify([data](PipecatClientCallbacks& c) { c.on_error(data); });
-}
-
-void PipecatClient::Impl::set_state_locked(TransportState state) {
-    if (_state == state) {
-        return;
-    }
-    _state = state;
-    _cv.notify_all();
-    notify_locked([state](PipecatClientCallbacks& c) {
-        c.on_transport_state_changed(state);
-    });
-}
-
-void PipecatClient::Impl::check_can_start_locked() const {
-    if (_destroying) {
-        throw PipecatError("Client is being destroyed");
-    }
-    if (is_busy(_state)) {
-        throw BotAlreadyStartedError();
-    }
-}
-
-bool PipecatClient::Impl::is_cancelled(uint64_t session) const {
-    std::lock_guard<std::mutex> lock(_mutex);
-    return session != _session;
 }
 
 //
