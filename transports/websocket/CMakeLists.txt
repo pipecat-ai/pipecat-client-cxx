@@ -54,9 +54,25 @@ get_target_property(PIPECAT_WEBSOCKET_LIBDATACHANNEL_TYPE
   LibDataChannel::LibDataChannel TYPE
 )
 
-# speexdsp, to convert the bot's audio to the app's sample rate.
+# speexdsp, to convert the bot's audio to the app's sample rate. Prefer an
+# installed one and fall back to downloading it. Only its resampler is needed,
+# so a downloaded one is built into the transport, with its functions renamed
+# so they can't clash with another copy in the app.
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
-find_package(SpeexDSP REQUIRED)
+find_package(SpeexDSP QUIET)
+if(SpeexDSP_FOUND)
+  set(PIPECAT_WEBSOCKET_SPEEXDSP_BUILT_IN OFF)
+else()
+  message(STATUS "speexdsp not found, downloading it")
+  include(FetchContent)
+  FetchContent_Declare(speexdsp
+    URL https://downloads.xiph.org/releases/speex/speexdsp-1.2.1.tar.gz
+    URL_HASH SHA256=8c777343e4a6399569c72abc38a95b24db56882c83dbdb6c6424a5f4aeb54d3d
+  )
+  FetchContent_MakeAvailable(speexdsp)
+  enable_language(C)
+  set(PIPECAT_WEBSOCKET_SPEEXDSP_BUILT_IN ON)
+endif()
 
 #
 # Library
@@ -81,8 +97,28 @@ target_include_directories(pipecat_websocket
 
 target_link_libraries(pipecat_websocket
   PUBLIC pipecat::pipecat
-  PRIVATE LibDataChannel::LibDataChannel SpeexDSP::SpeexDSP
+  PRIVATE LibDataChannel::LibDataChannel
 )
+
+if(PIPECAT_WEBSOCKET_SPEEXDSP_BUILT_IN)
+  set(_speexdsp_resampler ${speexdsp_SOURCE_DIR}/libspeexdsp/resample.c)
+  target_sources(pipecat_websocket PRIVATE ${_speexdsp_resampler})
+  target_include_directories(pipecat_websocket SYSTEM PRIVATE
+    ${speexdsp_SOURCE_DIR}/include
+    ${speexdsp_SOURCE_DIR}/include/speex
+  )
+  target_compile_definitions(pipecat_websocket PRIVATE
+    OUTSIDE_SPEEX
+    RANDOM_PREFIX=pipecat_speexdsp
+    FLOATING_POINT
+  )
+  # It's not our code, so our warnings don't apply to it.
+  set_source_files_properties(${_speexdsp_resampler} PROPERTIES
+    COMPILE_OPTIONS $<IF:$<C_COMPILER_ID:MSVC>,/w,-w>
+  )
+else()
+  target_link_libraries(pipecat_websocket PRIVATE SpeexDSP::SpeexDSP)
+endif()
 
 #
 # Install, as the `websocket` component of the pipecat package
