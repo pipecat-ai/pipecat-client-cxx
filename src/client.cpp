@@ -1218,6 +1218,14 @@ void PipecatClient::send_client_message(
     _impl->send_client_message(type, data);
 }
 
+void PipecatClient::disconnect_bot() {
+    _impl->disconnect_bot();
+}
+
+void PipecatClient::send_dtmf(const std::string& buttons) {
+    _impl->send_dtmf(buttons);
+}
+
 void PipecatClient::send_client_request(
         const std::string& type,
         const json& data,
@@ -1233,14 +1241,6 @@ std::future<json> PipecatClient::send_client_request(
         std::chrono::milliseconds timeout
 ) {
     return _impl->send_client_request(type, data, timeout);
-}
-
-void PipecatClient::disconnect_bot() {
-    _impl->disconnect_bot();
-}
-
-void PipecatClient::send_dtmf(const std::string& buttons) {
-    _impl->send_dtmf(buttons);
 }
 
 void PipecatClient::register_function_call_handler(

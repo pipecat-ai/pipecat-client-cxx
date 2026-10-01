@@ -279,6 +279,9 @@ class PipecatClient {
     /// Clients can't be copied.
     PipecatClient& operator=(const PipecatClient&) = delete;
 
+    /// @name Connection
+    /// @{
+
     /// Prepares the transport, e.g. its audio devices. Optional: start_bot()
     /// and connect() do it when needed.
     void initialize();
@@ -328,6 +331,11 @@ class PipecatClient {
     /// with the client, not the transport.
     Transport& transport();
 
+    /// @}
+
+    /// @name Audio
+    /// @{
+
     /// Sends `num_frames` frames of 16-bit PCM user audio to the bot. Returns
     /// the number of frames sent, or 0 if not connected.
     int32_t send_user_audio(const int16_t* frames, size_t num_frames);
@@ -335,6 +343,11 @@ class PipecatClient {
     /// Reads up to `num_frames` frames of 16-bit PCM bot audio into `frames`.
     /// Returns the number of frames read, or 0 if not connected.
     int32_t read_bot_audio(int16_t* frames, size_t num_frames);
+
+    /// @}
+
+    /// @name Messages to the bot
+    /// @{
 
     /// Sends text to the bot's LLM, as if the user said it.
     void send_text(
@@ -347,6 +360,20 @@ class PipecatClient {
             const std::string& type,
             const nlohmann::json& data = nullptr
     );
+
+    /// Asks the bot to leave. The client stays connected.
+    void disconnect_bot();
+
+    /// Sends DTMF keys (0-9, * and #), e.g. "123#".
+    ///
+    /// Throws PipecatError if `buttons` has other characters, and
+    /// UnsupportedFeatureError if the bot uses an RTVI version older than 2.1.
+    void send_dtmf(const std::string& buttons);
+
+    /// @}
+
+    /// @name Client requests
+    /// @{
 
     /// Sends an app-defined message to the bot, and calls `callback` with its
     /// answer.
@@ -371,14 +398,10 @@ class PipecatClient {
             std::chrono::milliseconds timeout = std::chrono::seconds(10)
     );
 
-    /// Asks the bot to leave. The client stays connected.
-    void disconnect_bot();
+    /// @}
 
-    /// Sends DTMF keys (0-9, * and #), e.g. "123#".
-    ///
-    /// Throws PipecatError if `buttons` has other characters, and
-    /// UnsupportedFeatureError if the bot uses an RTVI version older than 2.1.
-    void send_dtmf(const std::string& buttons);
+    /// @name Function calls
+    /// @{
 
     /// Handles function calls named `function_name` in the client, replacing
     /// the previous handler for that name.
@@ -392,6 +415,8 @@ class PipecatClient {
 
     /// Stops handling all function calls.
     void unregister_all_function_call_handlers();
+
+    /// @}
 
    private:
     class Impl;
