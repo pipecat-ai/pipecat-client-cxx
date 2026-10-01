@@ -45,6 +45,17 @@ class App : public pipecat::PipecatClientCallbacks {
     void on_bot_output(const pipecat::rtvi::BotOutputData& data) override {
         std::cout << "Bot: " << data.text << std::endl;
     }
+
+    // Handle an LLM function call. `respond` can also be called later, from
+    // any thread, e.g. when a slow operation finishes.
+    void on_llm_function_call_in_progress(
+            const pipecat::rtvi::LLMFunctionCallInProgressData& data,
+            pipecat::FunctionCallResultCallback respond
+    ) override {
+        if (data.function_name == "get_weather") {
+            respond({{"conditions", "sunny"}, {"temperature", 22}});
+        }
+    }
 };
 
 int main() {
@@ -54,15 +65,6 @@ int main() {
     options.transport = std::make_unique<MyTransport>();  // e.g. Daily
     options.callbacks = &app;
     pipecat::PipecatClient client(std::move(options));
-
-    // Handle an LLM function call. `respond` can also be called later, from
-    // any thread, e.g. when a slow operation finishes.
-    client.register_function_call_handler(
-            "get_weather",
-            [](const auto& params, auto respond) {
-                respond({{"conditions", "sunny"}, {"temperature", 22}});
-            }
-    );
 
     // Start the bot (e.g. on Pipecat Cloud or your own server) and wait
     // until it's ready.
@@ -101,12 +103,12 @@ on your machine or on Pipecat Cloud.
 
 - `start_bot()`, `connect()` and `disconnect()` block the calling thread.
   Everything else returns right away. All methods are thread-safe.
-- Callbacks, `send_client_request()` callbacks and function call handlers run
-  on the client's own event thread, one at a time and in order. You can call
-  any client method from them, including `disconnect()` or waiting on a
-  `send_client_request()` future.
-- Events wait while a callback runs, so keep callbacks short. Function call
-  handlers can respond later instead of blocking.
+- Callbacks and `send_client_request()` callbacks run on the client's own
+  event thread, one at a time and in order. You can call any client method
+  from them, including `disconnect()` or waiting on a `send_client_request()`
+  future.
+- Events wait while a callback runs, so keep callbacks short. Function calls
+  can be answered later instead of blocking.
 - Callbacks must not throw, and must not destroy the client.
 - Call `send_user_audio()` and `read_bot_audio()` from your own audio threads.
 

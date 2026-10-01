@@ -35,8 +35,9 @@ The Daily transport is now part of this repository, see
 - Messages to the bot: `send_text()`, `send_client_message()`,
   `send_client_request()` (with a callback or a `std::future`, and a timeout),
   `disconnect_bot()` and `send_dtmf()`.
-- Function call handlers, with `register_function_call_handler()`. Handlers
-  can respond right away or later, from any thread.
+- Function calls the app runs: `on_llm_function_call_in_progress()` gets a
+  `respond` callback to send the result, right away or later, from any
+  thread.
 - `Transport` and `TransportObserver`, to write transports.
 - Errors like client-js's: `StartBotError`, `ConnectionTimeoutError`,
   `BotNotReadyError`, `MessageError`, `RequestTimeoutError`, ...
@@ -165,7 +166,7 @@ and was rewritten for this version, like the client.
 | `on_bot_transcript()` | `on_bot_output()` |
 | `on_generic_message()` | `on_unhandled_message()` |
 | `send_action()` and service configuration | `send_client_message()` or `send_client_request()`, handled by your bot |
-| `RTVILLMHelper` and `on_function_call()` | `register_function_call_handler()` |
+| `RTVILLMHelper` and `on_function_call()` | `on_llm_function_call_in_progress()`, answered with its `respond` callback |
 | `RTVITransport` | `Transport` and `TransportObserver` |
 | `FindPipecat.cmake` and `PIPECAT_SDK_PATH` | `find_package(pipecat)` with `CMAKE_PREFIX_PATH`, or pkg-config |
 

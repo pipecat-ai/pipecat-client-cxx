@@ -74,9 +74,9 @@ at a time, in the order things happened. This means:
   [disconnect()](@ref pipecat::PipecatClient::disconnect).
 - Callbacks must not throw, and must not destroy the client.
 
-Request callbacks and function call handlers run on the same thread as the
-other callbacks. A function call handler can respond later, from any thread,
-so slow work doesn't hold up other events.
+Request callbacks run on the same thread as the other callbacks. Function
+calls can be answered later, from any thread, so slow work doesn't hold up
+other events.
 
 **Audio** is up to you: send and read it from your own audio threads, like
 the ones your audio library gives you.
@@ -208,18 +208,23 @@ void on_bot_output(const pipecat::rtvi::BotOutputData& data) override {
 ```
 
 Handle function calls from the bot's LLM in your app with
-[register_function_call_handler()](@ref pipecat::PipecatClient::register_function_call_handler):
+[on_llm_function_call_in_progress()](@ref pipecat::PipecatClientCallbacks::on_llm_function_call_in_progress),
+like `registerFunctionCallHandler()` in the JavaScript client. Call `respond`
+with the result of the functions your app runs, and ignore the others, e.g.
+the ones the bot runs itself:
 
 ```cpp
-client.register_function_call_handler(
-        "move_arm",
-        [&](const auto& params, auto respond) {
-            // Respond once the arm has moved, without blocking the client.
-            robot.move_arm(params.arguments, [respond](bool done) {
-                respond({{"done", done}});
-            });
-        }
-);
+void on_llm_function_call_in_progress(
+        const pipecat::rtvi::LLMFunctionCallInProgressData& data,
+        pipecat::FunctionCallResultCallback respond
+) override {
+    if (data.function_name == "move_arm") {
+        // Respond once the arm has moved, without holding up other events.
+        robot.move_arm(data.arguments, [respond](bool done) {
+            respond({{"done", done}});
+        });
+    }
+}
 ```
 
 Send the user's audio and play the bot's with
