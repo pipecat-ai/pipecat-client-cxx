@@ -10,17 +10,15 @@
 client applications, such as robots, kiosks, smart devices or games, that talk
 to a Pipecat bot.
 
-It implements the RTVI protocol 2.1, like the
-[JavaScript client](https://github.com/pipecat-ai/pipecat-client-web), and
-supports Linux (`x86_64` and `aarch64`), macOS (`aarch64`) and Windows
+It supports Linux (`x86_64` and `aarch64`), macOS (`aarch64`) and Windows
 (`x86_64`). It needs a C++17 compiler.
 
 ## 🌐 Transports
 
-`pipecat-client-cxx` needs a transport in order to connect to your Pipecat
-bot. Currently available transports:
+`pipecat-client-cxx` needs a transport to connect to your Pipecat bot. These
+are the available transports (see [Building transports](#-building-transports)):
 
-- [Daily Transport for Pipecat C++ Client SDK](https://github.com/pipecat-ai/pipecat-client-cxx-daily)
+- [Daily](transports/daily): connects to the bot's Daily room, using WebRTC.
 
 You can also [write your own](#-writing-a-transport).
 
@@ -181,6 +179,33 @@ pipecat_dep = dependency('pipecat', version: '>= 1.0')
 ```
 
 Meson projects need `cpp_std=c++17` or newer.
+
+## 🧩 Building transports
+
+Transports are off by default, since each needs its own dependencies. Turn on
+the ones you want when configuring, and they're built, tested and installed
+with the client:
+
+```bash
+cmake . -G Ninja -Bbuild -DCMAKE_BUILD_TYPE=Release \
+  -DPIPECAT_BUILD_DAILY=ON \
+  -DDailyCore_ROOT=/path/to/daily-core-sdk
+```
+
+| Transport | Option | Component | Needs |
+| --- | --- | --- | --- |
+| [Daily](transports/daily) | `PIPECAT_BUILD_DAILY` | `daily` | The [Daily Core C++ SDK](https://github.com/daily-co/daily-core-sdk) 0.23.0 or newer, with `DailyCore_ROOT` pointing to it |
+
+Then use them as components of the package, which also finds their
+dependencies. Each component's target is `pipecat::<component>`:
+
+```cmake
+find_package(pipecat 1.0 REQUIRED COMPONENTS daily)
+target_link_libraries(my_app PRIVATE pipecat::daily)
+```
+
+With `add_subdirectory()` or `FetchContent`, set the options before adding
+this repository.
 
 ## 🔌 Writing a transport
 

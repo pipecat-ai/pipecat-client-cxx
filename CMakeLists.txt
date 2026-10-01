@@ -28,6 +28,9 @@ option(PIPECAT_INSTALL "Generate the install target" ON)
 option(PIPECAT_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
 option(PIPECAT_BUILD_DOCS "Build the API reference with Doxygen" OFF)
 
+# Transports. Each needs its own dependencies, so they're only built when asked.
+option(PIPECAT_BUILD_DAILY "Build the Daily transport" OFF)
+
 include(GNUInstallDirs)
 
 #
@@ -50,6 +53,36 @@ if(NOT nlohmann_json_FOUND)
   FetchContent_MakeAvailable(nlohmann_json)
 endif()
 
+# Settings for every library here: strict C++17, warnings, and hidden symbols
+# on Apple platforms.
+function(pipecat_set_target_defaults target)
+  # Built as strict C++17 so newer features don't creep in, and consumers only
+  # need C++17 or newer.
+  target_compile_features(${target} PUBLIC cxx_std_17)
+  set_target_properties(${target} PROPERTIES
+    CXX_STANDARD 17
+    CXX_STANDARD_REQUIRED ON
+    CXX_EXTENSIONS OFF
+    DEBUG_POSTFIX d
+  )
+
+  if(MSVC)
+    target_compile_options(${target} PRIVATE
+      /W4
+      $<$<BOOL:${PIPECAT_WARNINGS_AS_ERRORS}>:/WX>
+    )
+  else()
+    target_compile_options(${target} PRIVATE
+      -Wall -Wextra -Wpedantic
+      $<$<BOOL:${PIPECAT_WARNINGS_AS_ERRORS}>:-Werror>
+    )
+  endif()
+
+  if(APPLE)
+    set_target_properties(${target} PROPERTIES CXX_VISIBILITY_PRESET hidden)
+  endif()
+endfunction()
+
 #
 # Library
 #
@@ -62,16 +95,7 @@ add_library(pipecat STATIC
   src/transport.cpp
 )
 add_library(pipecat::pipecat ALIAS pipecat)
-
-# The library is built as strict C++17 so newer features don't creep in, and
-# consumers only need C++17 or newer.
-target_compile_features(pipecat PUBLIC cxx_std_17)
-set_target_properties(pipecat PROPERTIES
-  CXX_STANDARD 17
-  CXX_STANDARD_REQUIRED ON
-  CXX_EXTENSIONS OFF
-  DEBUG_POSTFIX d
-)
+pipecat_set_target_defaults(pipecat)
 
 configure_file(cmake/version.h.in include/pipecat/version.h @ONLY)
 
@@ -85,22 +109,6 @@ target_link_libraries(pipecat
   PUBLIC nlohmann_json::nlohmann_json
   PRIVATE CURL::libcurl Threads::Threads
 )
-
-if(MSVC)
-  target_compile_options(pipecat PRIVATE
-    /W4
-    $<$<BOOL:${PIPECAT_WARNINGS_AS_ERRORS}>:/WX>
-  )
-else()
-  target_compile_options(pipecat PRIVATE
-    -Wall -Wextra -Wpedantic
-    $<$<BOOL:${PIPECAT_WARNINGS_AS_ERRORS}>:-Werror>
-  )
-endif()
-
-if(APPLE)
-  set_target_properties(pipecat PROPERTIES CXX_VISIBILITY_PRESET hidden)
-endif()
 
 #
 # Install
@@ -215,6 +223,7 @@ if(PIPECAT_BUILD_DOCS)
   set(DOXYGEN_STRIP_FROM_PATH
     ${PROJECT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_BINARY_DIR}/include
+    ${PROJECT_SOURCE_DIR}/transports/daily/include
   )
   set(DOXYGEN_STRIP_FROM_INC_PATH ${DOXYGEN_STRIP_FROM_PATH})
   # Warn about anything public that isn't documented.
@@ -233,10 +242,14 @@ if(PIPECAT_BUILD_DOCS)
     set(DOXYGEN_WARN_AS_ERROR FAIL_ON_WARNINGS)
   endif()
 
+  # The transports are always documented. Doxygen only reads their headers, so
+  # it doesn't need their dependencies.
   doxygen_add_docs(docs
     ${PROJECT_SOURCE_DIR}/docs/mainpage.md
     ${PROJECT_SOURCE_DIR}/include/pipecat
     ${CMAKE_CURRENT_BINARY_DIR}/include/pipecat/version.h
+    ${PROJECT_SOURCE_DIR}/transports/daily/docs/daily.md
+    ${PROJECT_SOURCE_DIR}/transports/daily/include/pipecat/daily
     COMMENT "Generating the API reference"
   )
 endif()
@@ -246,5 +259,29 @@ endif()
 #
 if(PIPECAT_BUILD_TESTS)
   enable_testing()
+
+  # Prefer an installed GoogleTest and fall back to downloading it.
+  find_package(GTest 1.10 CONFIG QUIET)
+  if(NOT GTest_FOUND)
+    message(STATUS "GoogleTest not found, downloading it")
+    include(FetchContent)
+    FetchContent_Declare(googletest
+      URL https://github.com/google/googletest/archive/refs/tags/v1.18.0.tar.gz
+      URL_HASH SHA256=6e3191c1455468b3fc35a417fb565c1c5071aee1b7e7f85e30cf48a98d37d8b5
+    )
+    set(gtest_force_shared_crt ON)
+    set(INSTALL_GTEST OFF)
+    set(BUILD_GMOCK OFF)
+    FetchContent_MakeAvailable(googletest)
+  endif()
+  include(GoogleTest)
+
   add_subdirectory(tests)
+endif()
+
+#
+# Transports
+#
+if(PIPECAT_BUILD_DAILY)
+  add_subdirectory(transports/daily)
 endif()
