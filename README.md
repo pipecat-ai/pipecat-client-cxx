@@ -215,6 +215,10 @@ find_package(pipecat 1.0 REQUIRED COMPONENTS daily)
 target_link_libraries(my_app PRIVATE pipecat::daily)
 ```
 
+If your app can do without a transport, ask for it in `OPTIONAL_COMPONENTS`
+instead. When it wasn't installed, or its dependencies aren't found, the
+package is still found, with `pipecat_<component>_FOUND` off.
+
 With `add_subdirectory()` or `FetchContent`, set the options before adding
 this repository.
 
