@@ -55,6 +55,13 @@ void print(const std::string& text) {
     std::cout << text << std::endl;
 }
 
+std::string current_time() {
+    std::time_t now = std::time(nullptr);
+    char text[64];
+    std::strftime(text, sizeof(text), "%H:%M", std::localtime(&now));
+    return text;
+}
+
 class App : public pipecat::PipecatClientCallbacks {
    public:
     void on_bot_ready(const pipecat::rtvi::BotReadyData&) override {
@@ -77,6 +84,16 @@ class App : public pipecat::PipecatClientCallbacks {
         print("Bot: " + data.text);
     }
 
+    // Answers the bot's `get_current_time` function calls.
+    void on_llm_function_call_in_progress(
+            const pipecat::rtvi::LLMFunctionCallInProgressData& data,
+            pipecat::FunctionCallResultCallback respond
+    ) override {
+        if (data.function_name == "get_current_time") {
+            respond({{"time", current_time()}});
+        }
+    }
+
     void on_error(const pipecat::rtvi::ErrorData& error) override {
         print("Error: " + error.error);
     }
@@ -89,13 +106,6 @@ class App : public pipecat::PipecatClientCallbacks {
    private:
     std::set<int64_t> _printed;
 };
-
-std::string current_time() {
-    std::time_t now = std::time(nullptr);
-    char text[64];
-    std::strftime(text, sizeof(text), "%H:%M", std::localtime(&now));
-    return text;
-}
 
 // Creates the transport called `name`, if the example was built with it, and
 // asks the start endpoint for a bot that uses it.
@@ -156,14 +166,6 @@ int main(int argc, char* argv[]) {
     }
     options.callbacks = &app;
     pipecat::PipecatClient client(std::move(options));
-
-    client.register_function_call_handler(
-            "get_current_time",
-            [](const pipecat::FunctionCallParams&,
-               pipecat::FunctionCallResultCallback respond) {
-                respond({{"time", current_time()}});
-            }
-    );
 
     try {
         print("Starting the bot...");

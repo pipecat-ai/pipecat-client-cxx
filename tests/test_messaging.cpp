@@ -180,9 +180,7 @@ TEST(ClientRequest, Callback) {
 
     std::promise<std::pair<ClientResponse, std::thread::id>> answered;
     client->send_client_request(
-            "get-weather",
-            nullptr,
-            [&](const ClientResponse& response) {
+            "get-weather", nullptr, [&](const ClientResponse& response) {
                 answered.set_value({response, std::this_thread::get_id()});
             }
     );
@@ -231,9 +229,7 @@ TEST(ClientRequest, DisconnectCancels) {
     );
     std::promise<ClientResponse> answered;
     client->send_client_request(
-            "get-time",
-            nullptr,
-            [&](const ClientResponse& response) {
+            "get-time", nullptr, [&](const ClientResponse& response) {
                 answered.set_value(response);
             }
     );
@@ -364,18 +360,14 @@ void flush(FakeTransport* transport, Recorder& recorder) {
 
 }  // namespace
 
-TEST(FunctionCall, HandlerResponds) {
+TEST(FunctionCall, CallbackResponds) {
     Recorder recorder;
-    auto [transport, client] = make_client(recorder);
-    std::promise<std::pair<FunctionCallParams, std::thread::id>> called;
-    client->register_function_call_handler(
-            "get_weather",
-            [&](const FunctionCallParams& params,
-                FunctionCallResultCallback respond) {
-                called.set_value({params, std::this_thread::get_id()});
+    recorder.on_function_call_hook =
+            [](const rtvi::LLMFunctionCallInProgressData&,
+               FunctionCallResultCallback respond) {
                 respond({{"temperature", 20}});
-            }
-    );
+            };
+    auto [transport, client] = make_client(recorder);
     client->connect();
 
     transport->deliver_message(function_call("get_weather", "call_1"));
@@ -390,26 +382,23 @@ TEST(FunctionCall, HandlerResponds) {
                 "result": {"temperature": 20}
             })")
     );
-    auto [params, thread] = called.get_future().get();
-    EXPECT_EQ(params.function_name, "get_weather");
-    EXPECT_EQ(params.arguments, json({{"city", "SF"}}));
-    EXPECT_NE(thread, std::this_thread::get_id());
-    // The in-progress callback still runs.
-    ASSERT_TRUE(recorder.wait_for(
-            R"(function-call-in-progress:get_weather:{"city":"SF"})"
-    ));
-}
-
-TEST(FunctionCall, HandlerRespondsLater) {
-    Recorder recorder;
-    auto [transport, client] = make_client(recorder);
-    std::promise<FunctionCallResultCallback> called;
-    client->register_function_call_handler(
-            "get_weather",
-            [&](const FunctionCallParams&, FunctionCallResultCallback respond) {
-                called.set_value(respond);
+    EXPECT_EQ(
+            recorder.events("function-call-in-progress:"),
+            std::vector<std::string> {
+                    R"(function-call-in-progress:get_weather:{"city":"SF"})"
             }
     );
+}
+
+TEST(FunctionCall, CallbackRespondsLater) {
+    Recorder recorder;
+    std::promise<FunctionCallResultCallback> called;
+    recorder.on_function_call_hook =
+            [&](const rtvi::LLMFunctionCallInProgressData&,
+                FunctionCallResultCallback respond) {
+                called.set_value(respond);
+            };
+    auto [transport, client] = make_client(recorder);
     client->connect();
     transport->deliver_message(function_call("get_weather", "call_1"));
 
@@ -425,40 +414,45 @@ TEST(FunctionCall, HandlerRespondsLater) {
     EXPECT_EQ(sent[0].data["result"], json::object());
 }
 
-TEST(FunctionCall, OnlyMatchingHandlerRuns) {
+TEST(FunctionCall, NothingIsSentWithoutAResult) {
     Recorder recorder;
     auto [transport, client] = make_client(recorder);
-    int calls = 0;
-    client->register_function_call_handler(
-            "get_weather",
-            [&](const FunctionCallParams&, FunctionCallResultCallback) {
-                calls++;
-            }
-    );
     client->connect();
 
-    transport->deliver_message(function_call("get_time", "call_1"));
-    // Without a name, it can't be matched to a handler.
-    transport->deliver_message(function_call("", "call_2"));
+    // E.g. a function the bot runs itself.
+    transport->deliver_message(function_call("get_weather", "call_1"));
     flush(transport, recorder);
-    EXPECT_EQ(calls, 0);
 
-    client->unregister_function_call_handler("get_weather");
-    transport->deliver_message(function_call("get_weather", "call_3"));
-    flush(transport, recorder);
-    EXPECT_EQ(calls, 0);
+    EXPECT_EQ(recorder.events("function-call-in-progress:").size(), 1u);
+    EXPECT_TRUE(transport->sent_messages("llm-function-call-result").empty());
+}
+
+TEST(FunctionCall, RespondsWithoutTheFunctionName) {
+    Recorder recorder;
+    recorder.on_function_call_hook =
+            [](const rtvi::LLMFunctionCallInProgressData&,
+               FunctionCallResultCallback respond) { respond({{"ok", true}}); };
+    auto [transport, client] = make_client(recorder);
+    client->connect();
+
+    // The bot doesn't always share the name.
+    transport->deliver_message(function_call("", "call_1"));
+
+    ASSERT_TRUE(transport->wait_for_sent("llm-function-call-result"));
+    auto data = transport->sent_messages("llm-function-call-result")[0].data;
+    EXPECT_EQ(data["function_name"], "");
+    EXPECT_EQ(data["tool_call_id"], "call_1");
 }
 
 TEST(FunctionCall, RespondAfterClientIsDestroyed) {
     Recorder recorder;
-    auto [transport, client] = make_client(recorder);
     std::promise<FunctionCallResultCallback> called;
-    client->register_function_call_handler(
-            "get_weather",
-            [&](const FunctionCallParams&, FunctionCallResultCallback respond) {
+    recorder.on_function_call_hook =
+            [&](const rtvi::LLMFunctionCallInProgressData&,
+                FunctionCallResultCallback respond) {
                 called.set_value(respond);
-            }
-    );
+            };
+    auto [transport, client] = make_client(recorder);
     client->connect();
     transport->deliver_message(function_call("get_weather", "call_1"));
     auto respond = called.get_future().get();

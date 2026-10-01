@@ -28,6 +28,12 @@
 /// The Pipecat C++ client SDK.
 namespace pipecat {
 
+/// Sends the result of a function call to the bot.
+///
+/// Call it once, right away or later, from any thread. It does nothing after
+/// the client disconnects. A null result is sent as an empty object.
+using FunctionCallResultCallback = std::function<void(nlohmann::json result)>;
+
 /// Receives events from the client. Override the ones you need.
 ///
 /// Callbacks run one at a time and in order, on the client's own thread. You
@@ -166,10 +172,13 @@ class PipecatClientCallbacks {
             const rtvi::LLMFunctionCallStartedData& /* data */
     ) {}
 
-    /// A function call is running. To handle function calls in the client,
-    /// use PipecatClient::register_function_call_handler().
+    /// The bot's LLM called a function. If your app runs it, call `respond`
+    /// with the result. For slow work, call it later, e.g. from another
+    /// thread, so other events don't wait. Calls to functions the bot runs
+    /// itself also arrive here: don't call `respond` for them.
     virtual void on_llm_function_call_in_progress(
-            const rtvi::LLMFunctionCallInProgressData& /* data */
+            const rtvi::LLMFunctionCallInProgressData& /* data */,
+            FunctionCallResultCallback /* respond */
     ) {}
 
     /// A function call finished or was cancelled.
@@ -219,29 +228,6 @@ struct ClientResponse {
 
 /// Receives the bot's answer to a request.
 using ClientResponseCallback = std::function<void(const ClientResponse&)>;
-
-/// A function call from the bot's LLM, to handle in the client.
-struct FunctionCallParams {
-    /// Name of the function.
-    std::string function_name;
-    /// Arguments of the call, as a JSON object.
-    nlohmann::json arguments;
-};
-
-/// Sends the result of a function call to the bot.
-///
-/// Call it once, right away or later, from any thread. It does nothing after
-/// the client disconnects. A null result is sent as an empty object.
-using FunctionCallResultCallback = std::function<void(nlohmann::json result)>;
-
-/// Handles a function call from the bot's LLM.
-///
-/// Call `respond` with the result when it's ready. If you never call it, no
-/// result is sent. Handlers run on the client's own thread, like callbacks,
-/// so they shouldn't block: for slow work, call `respond` later.
-using FunctionCallHandler = std::function<
-        void(const FunctionCallParams& params,
-             FunctionCallResultCallback respond)>;
 
 /// Options to create a PipecatClient.
 struct PipecatClientOptions {
@@ -397,24 +383,6 @@ class PipecatClient {
             const nlohmann::json& data = nullptr,
             std::chrono::milliseconds timeout = std::chrono::seconds(10)
     );
-
-    /// @}
-
-    /// @name Function calls
-    /// @{
-
-    /// Handles function calls named `function_name` in the client, replacing
-    /// the previous handler for that name.
-    void register_function_call_handler(
-            const std::string& function_name,
-            FunctionCallHandler handler
-    );
-
-    /// Stops handling function calls named `function_name`.
-    void unregister_function_call_handler(const std::string& function_name);
-
-    /// Stops handling all function calls.
-    void unregister_all_function_call_handlers();
 
     /// @}
 

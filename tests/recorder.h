@@ -26,6 +26,10 @@ class Recorder : public pipecat::PipecatClientCallbacks {
     std::function<void()> on_disconnected_hook;
     std::function<void()> on_bot_disconnected_hook;
     std::function<void()> on_user_started_speaking_hook;
+    std::function<
+            void(const pipecat::rtvi::LLMFunctionCallInProgressData&,
+                 pipecat::FunctionCallResultCallback)>
+            on_function_call_hook;
 
     std::vector<std::string> events() const {
         std::lock_guard<std::mutex> lock(_mutex);
@@ -94,7 +98,8 @@ class Recorder : public pipecat::PipecatClientCallbacks {
             on_bot_disconnected_hook();
         }
     }
-    void on_participant_joined(const pipecat::Participant& participant
+    void on_participant_joined(
+            const pipecat::Participant& participant
     ) override {
         record("participant-joined:" + participant.id);
     }
@@ -136,7 +141,8 @@ class Recorder : public pipecat::PipecatClientCallbacks {
 
     // Transcription and output
 
-    void on_user_transcript(const pipecat::rtvi::TranscriptData& data
+    void on_user_transcript(
+            const pipecat::rtvi::TranscriptData& data
     ) override {
         record("user-transcript:" + data.text + (data.final ? ":final" : ""));
     }
@@ -168,10 +174,14 @@ class Recorder : public pipecat::PipecatClientCallbacks {
         record("function-call-started:" + data.function_name.value_or(""));
     }
     void on_llm_function_call_in_progress(
-            const pipecat::rtvi::LLMFunctionCallInProgressData& data
+            const pipecat::rtvi::LLMFunctionCallInProgressData& data,
+            pipecat::FunctionCallResultCallback respond
     ) override {
         record("function-call-in-progress:" + data.function_name.value_or("") +
                ":" + data.arguments.dump());
+        if (on_function_call_hook) {
+            on_function_call_hook(data, respond);
+        }
     }
     void on_llm_function_call_stopped(
             const pipecat::rtvi::LLMFunctionCallStoppedData& data

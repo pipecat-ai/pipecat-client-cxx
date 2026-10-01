@@ -142,15 +142,6 @@ class PipecatClient::Impl : public TransportObserver {
             std::chrono::milliseconds timeout
     );
 
-    // Function calls
-
-    void register_function_call_handler(
-            const std::string& function_name,
-            FunctionCallHandler handler
-    );
-    void unregister_function_call_handler(const std::string& function_name);
-    void unregister_all_function_call_handlers();
-
     // Transport events, from TransportObserver
 
     void on_transport_message(const json& message) override;
@@ -226,7 +217,8 @@ class PipecatClient::Impl : public TransportObserver {
 
     // Function calls
 
-    void run_function_call_handler(
+    // What the app calls to send the result of `call`.
+    FunctionCallResultCallback function_call_responder(
             const rtvi::LLMFunctionCallInProgressData& call
     );
     void send_function_call_result(const rtvi::LLMFunctionCallResultData& data);
@@ -281,8 +273,6 @@ class PipecatClient::Impl : public TransportObserver {
     std::optional<rtvi::BotReadyData> _bot_ready;
     // Client requests waiting for an answer, by message ID.
     std::map<std::string, PendingRequest> _requests;
-    // By function name.
-    std::map<std::string, FunctionCallHandler> _function_call_handlers;
     // start_bot() and connect() fail, and the request timer stops, once the
     // destructor runs.
     bool _destroying = false;
@@ -835,58 +825,20 @@ void PipecatClient::Impl::run_request_timer() {
 // Function calls
 //
 
-void PipecatClient::Impl::register_function_call_handler(
-        const std::string& function_name,
-        FunctionCallHandler handler
-) {
-    std::lock_guard<std::mutex> lock(_mutex);
-    _function_call_handlers[function_name] = std::move(handler);
-}
-
-void PipecatClient::Impl::unregister_function_call_handler(
-        const std::string& function_name
-) {
-    std::lock_guard<std::mutex> lock(_mutex);
-    _function_call_handlers.erase(function_name);
-}
-
-void PipecatClient::Impl::unregister_all_function_call_handlers() {
-    std::lock_guard<std::mutex> lock(_mutex);
-    _function_call_handlers.clear();
-}
-
-void PipecatClient::Impl::run_function_call_handler(
+FunctionCallResultCallback PipecatClient::Impl::function_call_responder(
         const rtvi::LLMFunctionCallInProgressData& call
 ) {
-    // Handlers are matched by name, and the bot only sends it if it's
-    // configured to.
-    if (!call.function_name) {
-        return;
-    }
-
-    FunctionCallHandler handler;
-    {
-        std::lock_guard<std::mutex> lock(_mutex);
-        auto it = _function_call_handlers.find(*call.function_name);
-        if (it == _function_call_handlers.end()) {
-            return;
-        }
-        handler = it->second;
-    }
-
-    FunctionCallParams params;
-    params.function_name = *call.function_name;
-    params.arguments = call.arguments;
-
+    // Apps may call it several times, from any thread, and after the client
+    // is destroyed. Only the first call sends the result.
     auto responded = std::make_shared<std::atomic<bool>>(false);
-    FunctionCallResultCallback respond = [alive = _alive,
-                                          responded,
-                                          call](json result) {
+    return [alive = _alive, responded, call](json result) {
         if (responded->exchange(true)) {
             return;
         }
         rtvi::LLMFunctionCallResultData data;
-        data.function_name = *call.function_name;
+        // The bot matches results by tool call ID, so the name can be empty
+        // if the bot didn't share it.
+        data.function_name = call.function_name.value_or("");
         data.tool_call_id = call.tool_call_id;
         data.arguments = call.arguments;
         data.result = result.is_null() ? json::object() : std::move(result);
@@ -896,8 +848,6 @@ void PipecatClient::Impl::run_function_call_handler(
             alive->impl->send_function_call_result(data);
         }
     };
-
-    _loop.post([handler, params, respond] { handler(params, respond); });
 }
 
 void PipecatClient::Impl::send_function_call_result(
@@ -1086,8 +1036,9 @@ void PipecatClient::Impl::handle_message(const rtvi::Message& message) {
         break;
     case MessageType::LLMFunctionCallInProgress: {
         auto call = data.get<rtvi::LLMFunctionCallInProgressData>();
-        run_function_call_handler(call);
-        notify([call](C& c) { c.on_llm_function_call_in_progress(call); });
+        notify([call, respond = function_call_responder(call)](C& c) {
+            c.on_llm_function_call_in_progress(call, respond);
+        });
         break;
     }
     case MessageType::LLMFunctionCallStarted:
@@ -1241,23 +1192,6 @@ std::future<json> PipecatClient::send_client_request(
         std::chrono::milliseconds timeout
 ) {
     return _impl->send_client_request(type, data, timeout);
-}
-
-void PipecatClient::register_function_call_handler(
-        const std::string& function_name,
-        FunctionCallHandler handler
-) {
-    _impl->register_function_call_handler(function_name, std::move(handler));
-}
-
-void PipecatClient::unregister_function_call_handler(
-        const std::string& function_name
-) {
-    _impl->unregister_function_call_handler(function_name);
-}
-
-void PipecatClient::unregister_all_function_call_handlers() {
-    _impl->unregister_all_function_call_handlers();
 }
 
 }  // namespace pipecat
