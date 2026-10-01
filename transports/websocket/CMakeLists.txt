@@ -54,11 +54,16 @@ get_target_property(PIPECAT_WEBSOCKET_LIBDATACHANNEL_TYPE
   LibDataChannel::LibDataChannel TYPE
 )
 
+# speexdsp, to convert the bot's audio to the app's sample rate.
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+find_package(SpeexDSP REQUIRED)
+
 #
 # Library
 #
 add_library(pipecat_websocket STATIC
   src/frames.cpp
+  src/resampler.cpp
   src/transport.cpp
 )
 add_library(pipecat::websocket ALIAS pipecat_websocket)
@@ -66,14 +71,17 @@ pipecat_set_target_defaults(pipecat_websocket)
 # Installed as pipecat::websocket, like the alias above.
 set_target_properties(pipecat_websocket PROPERTIES EXPORT_NAME websocket)
 
-target_include_directories(pipecat_websocket PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+target_include_directories(pipecat_websocket
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+  # The core's private code transports share, like AudioBuffer.
+  PRIVATE ${PROJECT_SOURCE_DIR}/src
 )
 
 target_link_libraries(pipecat_websocket
   PUBLIC pipecat::pipecat
-  PRIVATE LibDataChannel::LibDataChannel
+  PRIVATE LibDataChannel::LibDataChannel SpeexDSP::SpeexDSP
 )
 
 #
@@ -98,7 +106,9 @@ if(PIPECAT_INSTALL)
     ${CMAKE_CURRENT_BINARY_DIR}/pipecat-websocket.cmake
     @ONLY
   )
-  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/pipecat-websocket.cmake
+  install(FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/pipecat-websocket.cmake
+    cmake/FindSpeexDSP.cmake
     DESTINATION ${PIPECAT_CMAKE_DIR}
   )
 endif()

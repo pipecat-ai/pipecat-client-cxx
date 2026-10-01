@@ -451,7 +451,7 @@ class DailyTransport::Impl {
     std::string _audio_track_id;
 
     // The bot's audio, until the app reads it.
-    daily::AudioBuffer _bot_audio;
+    AudioBuffer _bot_audio;
     // Whether the transport is in a call. Atomic, since the audio methods
     // read it on audio threads.
     std::atomic<bool> _connected {false};

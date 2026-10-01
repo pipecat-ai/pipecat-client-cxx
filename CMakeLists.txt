@@ -88,6 +88,7 @@ endfunction()
 # Library
 #
 add_library(pipecat STATIC
+  src/audio_buffer.cpp
   src/client.cpp
   src/event_loop.cpp
   src/http.cpp

@@ -20,7 +20,6 @@ find_package(DailyCore ${PIPECAT_DAILY_MIN_DAILY_CORE_VERSION} CONFIG REQUIRED)
 # Library
 #
 add_library(pipecat_daily STATIC
-  src/audio_buffer.cpp
   src/context.cpp
   src/session.cpp
   src/transport.cpp
@@ -30,9 +29,12 @@ pipecat_set_target_defaults(pipecat_daily)
 # Installed as pipecat::daily, like the alias above.
 set_target_properties(pipecat_daily PROPERTIES EXPORT_NAME daily)
 
-target_include_directories(pipecat_daily PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+target_include_directories(pipecat_daily
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+  # The core's private code transports share, like AudioBuffer.
+  PRIVATE ${PROJECT_SOURCE_DIR}/src
 )
 
 target_link_libraries(pipecat_daily

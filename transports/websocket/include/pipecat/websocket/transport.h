@@ -86,8 +86,14 @@ class WebSocketTransport : public Transport {
     /// speaking. The audio is sent as is, without echo cancellation.
     int32_t send_user_audio(const int16_t* frames, size_t num_frames) override;
 
-    /// Reads up to `num_frames` frames of 16-bit PCM bot audio. Bot audio isn't
-    /// supported yet, so it returns 0.
+    /// Reads up to `num_frames` frames of 16-bit PCM bot audio into `frames`,
+    /// converted to the format of the options. Waits until there's audio to
+    /// read, or until the transport disconnects. Returns the number of frames
+    /// read, or 0 if it disconnected.
+    ///
+    /// The bot only sends audio while it speaks, and sends it faster than it
+    /// plays. The transport keeps up to a minute of it, and drops what's left
+    /// when the bot is interrupted, so read it as you play it.
     int32_t read_bot_audio(int16_t* frames, size_t num_frames) override;
 
    private:

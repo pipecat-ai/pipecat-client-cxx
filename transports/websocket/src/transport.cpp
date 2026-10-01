@@ -6,7 +6,9 @@
 
 #include "pipecat/websocket/transport.h"
 
+#include "audio_buffer.h"
 #include "frames.h"
+#include "resampler.h"
 
 #include <pipecat/errors.h>
 
@@ -22,6 +24,7 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 using nlohmann::json;
 
@@ -37,6 +40,10 @@ const size_t FRAME_OVERHEAD = 16;
 
 const std::chrono::seconds CONNECT_TIMEOUT {10};
 const std::chrono::seconds CLOSE_TIMEOUT {5};
+
+// The bot sends its audio twice as fast as it plays, so keep up to a minute
+// of it until the app reads it.
+const size_t BOT_AUDIO_SECONDS = 60;
 
 // Percent-encodes everything but unreserved characters (RFC 3986).
 std::string url_encode(const std::string& value) {
@@ -93,7 +100,13 @@ class WebSocketTransport::Impl {
     // Connection
     //
 
-    explicit Impl(WebSocketTransportOptions options) : _options(options) {}
+    explicit Impl(WebSocketTransportOptions options)
+        : _options(options),
+          _bot_audio(
+                  options.bot_audio_channels,
+                  options.bot_audio_sample_rate * BOT_AUDIO_SECONDS
+          ),
+          _resampler(options.bot_audio_sample_rate) {}
 
     ~Impl() { disconnect(); }
 
@@ -123,13 +136,18 @@ class WebSocketTransport::Impl {
         _open_error.reset();
         lock.unlock();
 
+        // The bot can speak as soon as it's connected.
+        _resampler.reset();
+        _bot_audio.open();
+
         try {
             ws->open(url);
         } catch (const std::invalid_argument& e) {
             // It never opened, so no callback runs.
             lock.lock();
-            _ws.reset();
             _state = State::Closed;
+            lock.unlock();
+            disconnect();
             throw InvalidTransportParamsError(e.what());
         }
 
@@ -157,6 +175,7 @@ class WebSocketTransport::Impl {
             return;
         }
         _connected = false;
+        _bot_audio.close();
         if (_state != State::Closed) {
             // Closing it ourselves isn't an unexpected disconnection.
             _state = State::Closing;
@@ -213,8 +232,8 @@ class WebSocketTransport::Impl {
         return static_cast<int32_t>(num_frames);
     }
 
-    int32_t read_bot_audio(int16_t* /* frames */, size_t /* num_frames */) {
-        return 0;
+    int32_t read_bot_audio(int16_t* frames, size_t num_frames) {
+        return static_cast<int32_t>(_bot_audio.read(frames, num_frames));
     }
 
    private:
@@ -279,6 +298,7 @@ class WebSocketTransport::Impl {
             }
         }
         _connected = false;
+        _bot_audio.close();
         _observer->on_transport_disconnected();
     }
 
@@ -303,11 +323,32 @@ class WebSocketTransport::Impl {
                 return;
             }
             _observer->on_transport_message(parsed);
+        } else if (auto* audio = std::get_if<websocket::AudioFrame>(&frame)) {
+            uint32_t channels = audio->num_channels;
+            std::vector<int16_t> samples = _resampler.process(
+                    audio->samples.data(),
+                    audio->samples.size() / channels,
+                    channels,
+                    audio->sample_rate
+            );
+            _bot_audio.write(
+                    samples.data(), samples.size() / channels, channels
+            );
+        } else if (std::get_if<websocket::InterruptionFrame>(&frame)) {
+            // The audio the bot already sent shouldn't play.
+            _resampler.reset();
+            _bot_audio.clear();
         }
     }
 
     WebSocketTransportOptions _options;
     TransportObserver* _observer = nullptr;
+
+    // The bot's audio, converted to the options' format, until the app reads
+    // it. Only handle_frame() uses the resampler, one frame at a time, and
+    // connect(), before the WebSocket opens.
+    AudioBuffer _bot_audio;
+    websocket::Resampler _resampler;
 
     // Whether the WebSocket is open. Atomic, since the audio methods read it
     // on audio threads.

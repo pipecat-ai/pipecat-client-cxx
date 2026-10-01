@@ -6,6 +6,7 @@
 
 add_executable(pipecat_websocket_tests
   test_frames.cpp
+  test_resampler.cpp
   test_transport.cpp
 )
 

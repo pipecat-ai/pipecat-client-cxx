@@ -157,6 +157,12 @@ AudioFrame decode_audio(std::string_view data) {
             reader.skip(wire_type);
         }
     }
+    if (frame.sample_rate == 0 || frame.num_channels == 0) {
+        throw std::runtime_error("Invalid frame: audio without a format");
+    }
+    if (frame.samples.size() % frame.num_channels != 0) {
+        throw std::runtime_error("Invalid frame: partial audio frame");
+    }
     return frame;
 }
 

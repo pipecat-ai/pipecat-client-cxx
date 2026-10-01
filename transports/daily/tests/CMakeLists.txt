@@ -5,7 +5,6 @@
 #
 
 add_executable(pipecat_daily_tests
-  test_audio_buffer.cpp
   test_session.cpp
   test_transport.cpp
 )

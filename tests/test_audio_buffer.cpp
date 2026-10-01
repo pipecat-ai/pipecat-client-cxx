@@ -12,7 +12,7 @@
 #include <future>
 #include <vector>
 
-using namespace pipecat::daily;
+using namespace pipecat;
 using Samples = std::vector<int16_t>;
 
 namespace {
@@ -88,6 +88,18 @@ TEST(AudioBuffer, CloseWakesUpReaders) {
     buffer.close();
 
     EXPECT_TRUE(reader.get().empty());
+}
+
+TEST(AudioBuffer, ClearDropsUnreadAudio) {
+    AudioBuffer buffer(1, 100);
+    buffer.open();
+    Samples samples {1, 2};
+    buffer.write(samples.data(), 2, 1);
+
+    buffer.clear();
+    Samples more {3};
+    buffer.write(more.data(), 1, 1);
+    EXPECT_EQ(read(buffer, 1, 1), (Samples {3}));
 }
 
 TEST(AudioBuffer, IgnoresAudioWhileClosed) {

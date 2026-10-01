@@ -125,6 +125,12 @@ TEST(Frames, RejectsInvalidFrames) {
     );
     // Audio with an odd number of bytes.
     EXPECT_THROW(decode_hex("12051a03010203"), std::runtime_error);
+    // Audio without a sample rate.
+    EXPECT_THROW(decode_hex("12061a0201002801"), std::runtime_error);
+    // Stereo audio with 3 samples.
+    EXPECT_THROW(
+            decode_hex("120d1a0601000200030020807d2802"), std::runtime_error
+    );
     // A length past the end.
     EXPECT_THROW(decode_hex("22ff01"), std::runtime_error);
     // An unknown wire type.

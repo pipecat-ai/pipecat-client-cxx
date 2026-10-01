@@ -255,6 +255,71 @@ TEST(WebSocketTransport, SendsUserAudio) {
     EXPECT_EQ(audio.num_channels, 1u);
 }
 
+TEST(WebSocketTransport, ReceivesBotAudio) {
+    FakeBot bot;
+    Observer observer;
+    WebSocketTransport transport;
+    transport.initialize(&observer);
+
+    int16_t frames[160] = {};
+    EXPECT_EQ(transport.read_bot_audio(frames, 160), 0);
+
+    transport.connect({{"wsUrl", bot.url()}});
+    std::vector<int16_t> samples(160, 1234);
+    bot.send(websocket::encode_audio(samples.data(), 160, 16000, 1));
+
+    EXPECT_EQ(transport.read_bot_audio(frames, 160), 160);
+    EXPECT_EQ(std::vector<int16_t>(frames, frames + 160), samples);
+}
+
+TEST(WebSocketTransport, ConvertsBotAudio) {
+    FakeBot bot;
+    Observer observer;
+    WebSocketTransportOptions options;
+    options.bot_audio_channels = 2;
+    WebSocketTransport transport(options);
+    transport.initialize(&observer);
+    transport.connect({{"wsUrl", bot.url()}});
+
+    // 20 ms at 24 kHz, mono.
+    std::vector<int16_t> samples(480, 1234);
+    bot.send(websocket::encode_audio(samples.data(), 480, 24000, 1));
+
+    // 20 ms at 16 kHz, stereo.
+    int16_t frames[320 * 2] = {};
+    EXPECT_EQ(transport.read_bot_audio(frames, 320), 320);
+    EXPECT_NEAR(frames[638], 1234, 20);
+    for (size_t i = 0; i < 640; i += 2) {
+        EXPECT_EQ(frames[i], frames[i + 1]);
+    }
+}
+
+TEST(WebSocketTransport, DropsBotAudioWhenInterrupted) {
+    FakeBot bot;
+    Observer observer;
+    WebSocketTransport transport;
+    transport.initialize(&observer);
+    transport.connect({{"wsUrl", bot.url()}});
+
+    std::vector<int16_t> interrupted(160, 1);
+    std::vector<int16_t> samples(160, 2);
+    bot.send(websocket::encode_audio(interrupted.data(), 160, 16000, 1));
+    // An InterruptionFrame, without fields.
+    bot.send(std::string("\x2a\x00", 2));
+    bot.send(websocket::encode_audio(samples.data(), 160, 16000, 1));
+    // Frames arrive in order, so the audio is there after this message.
+    bot.send(
+            websocket::encode_message(
+                    R"({"label":"rtvi-ai","type":"bot-ready","data":{}})"
+            )
+    );
+    ASSERT_TRUE(observer.wait_for("message:bot-ready"));
+
+    int16_t frames[160] = {};
+    EXPECT_EQ(transport.read_bot_audio(frames, 160), 160);
+    EXPECT_EQ(std::vector<int16_t>(frames, frames + 160), samples);
+}
+
 TEST(WebSocketTransport, ReportsWhenTheBotDisconnects) {
     FakeBot bot;
     Observer observer;
@@ -267,6 +332,7 @@ TEST(WebSocketTransport, ReportsWhenTheBotDisconnects) {
     EXPECT_TRUE(observer.wait_for("disconnected"));
     int16_t frames[160] = {};
     EXPECT_EQ(transport.send_user_audio(frames, 160), 0);
+    EXPECT_EQ(transport.read_bot_audio(frames, 160), 0);
 }
 
 TEST(WebSocketTransport, DisconnectingIsNotReported) {
@@ -280,6 +346,8 @@ TEST(WebSocketTransport, DisconnectingIsNotReported) {
 
     EXPECT_TRUE(bot.wait_for_closed());
     EXPECT_TRUE(observer.events().empty());
+    int16_t frames[160] = {};
+    EXPECT_EQ(transport.read_bot_audio(frames, 160), 0);
 }
 
 TEST(WebSocketTransport, ReportsInvalidFramesFromTheBot) {

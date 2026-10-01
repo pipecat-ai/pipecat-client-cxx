@@ -4,8 +4,8 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-#ifndef PIPECAT_DAILY_AUDIO_BUFFER_H
-#define PIPECAT_DAILY_AUDIO_BUFFER_H
+#ifndef PIPECAT_AUDIO_BUFFER_H
+#define PIPECAT_AUDIO_BUFFER_H
 
 #include <condition_variable>
 #include <cstddef>
@@ -13,7 +13,7 @@
 #include <deque>
 #include <mutex>
 
-namespace pipecat::daily {
+namespace pipecat {
 
 // 16-bit PCM audio received from the bot until the app reads it. Thread-safe.
 class AudioBuffer {
@@ -27,6 +27,10 @@ class AudioBuffer {
 
     // Stops accepting audio, and wakes up readers.
     void close();
+
+    // Drops the audio that hasn't been read, e.g. when the bot is
+    // interrupted.
+    void clear();
 
     // Adds `num_frames` frames of `channels` channels, converted to the
     // buffer's channels. Drops the oldest audio if the buffer is full, e.g.
@@ -50,6 +54,6 @@ class AudioBuffer {
     bool _open = false;
 };
 
-}  // namespace pipecat::daily
+}  // namespace pipecat
 
 #endif

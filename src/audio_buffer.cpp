@@ -8,7 +8,7 @@
 
 #include <algorithm>
 
-namespace pipecat::daily {
+namespace pipecat {
 
 AudioBuffer::AudioBuffer(size_t channels, size_t max_frames)
     : _channels(std::max<size_t>(channels, 1)),
@@ -27,6 +27,11 @@ void AudioBuffer::close() {
         _samples.clear();
     }
     _cv.notify_all();
+}
+
+void AudioBuffer::clear() {
+    std::lock_guard<std::mutex> lock(_mutex);
+    _samples.clear();
 }
 
 void AudioBuffer::write(
@@ -52,9 +57,11 @@ void AudioBuffer::write(
                 for (size_t c = 0; c < channels; ++c) {
                     sum += in[c];
                 }
-                _samples.push_back(static_cast<int16_t>(
-                        sum / static_cast<int32_t>(channels)
-                ));
+                _samples.push_back(
+                        static_cast<int16_t>(
+                                sum / static_cast<int32_t>(channels)
+                        )
+                );
             } else {
                 // Copy the channels, repeating the last one if there are
                 // fewer, e.g. mono to stereo.
@@ -94,4 +101,4 @@ size_t AudioBuffer::read(int16_t* samples, size_t num_frames) {
     return num_frames;
 }
 
-}  // namespace pipecat::daily
+}  // namespace pipecat
