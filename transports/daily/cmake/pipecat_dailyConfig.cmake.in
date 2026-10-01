@@ -1,0 +1,19 @@
+#
+# Copyright (c) 2024-2026, Daily
+#
+# SPDX-License-Identifier: BSD-2-Clause
+#
+
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+find_dependency(pipecat 1.0)
+find_dependency(Threads)
+
+# Point DailyCore_ROOT or CMAKE_PREFIX_PATH to the Daily Core SDK.
+find_dependency(DailyCore @PIPECAT_DAILY_MIN_DAILY_CORE_VERSION@ CONFIG)
+
+include("${CMAKE_CURRENT_LIST_DIR}/pipecat_dailyTargets.cmake")
+
+check_required_components(pipecat_daily)

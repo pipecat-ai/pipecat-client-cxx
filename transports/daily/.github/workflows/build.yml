@@ -1,0 +1,166 @@
+name: build
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DAILY_CORE_VERSION: 0.23.0
+  # Branch of pipecat-ai/pipecat-client-cxx to build against. Switch to main
+  # once the Pipecat C++ client 1.0 is merged.
+  PIPECAT_CLIENT_REF: aleix/pipecat-client-1.0
+
+jobs:
+  unix:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux x86_64 (GCC)
+            os: ubuntu-24.04
+            cxx: g++
+            daily_core: linux-x86_64
+            # The API reference isn't published, but this checks that
+            # everything public is documented.
+            docs: true
+            packages: doxygen
+          - name: Linux x86_64 (Clang)
+            os: ubuntu-24.04
+            cxx: clang++
+            daily_core: linux-x86_64
+            packages: clang
+          - name: Linux aarch64 (GCC)
+            os: ubuntu-24.04-arm
+            cxx: g++
+            daily_core: linux-arm64
+          - name: macOS aarch64 (Apple Clang)
+            os: macos-latest
+            cxx: clang++
+            daily_core: macos-arm64
+    steps:
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            cmake g++ libcurl4-openssl-dev ninja-build nlohmann-json3-dev pkg-config \
+            portaudio19-dev unzip ${{ matrix.packages }}
+
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: brew install nlohmann-json ninja pkgconf portaudio
+
+      - uses: actions/checkout@v7
+
+      - uses: actions/checkout@v7
+        with:
+          repository: pipecat-ai/pipecat-client-cxx
+          ref: ${{ env.PIPECAT_CLIENT_REF }}
+          path: pipecat-client-cxx
+
+      - name: Build the Pipecat client
+        run: |
+          cmake -S pipecat-client-cxx -B build-pipecat -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
+            -DPIPECAT_BUILD_TESTS=OFF
+          cmake --build build-pipecat
+          cmake --install build-pipecat --prefix "$PWD/pipecat"
+
+      - name: Download Daily Core
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sdk=daily-core-sdk-$DAILY_CORE_VERSION-${{ matrix.daily_core }}
+          gh release download "v$DAILY_CORE_VERSION" --repo daily-co/daily-core-sdk --pattern "$sdk.zip"
+          unzip -q "$sdk.zip"
+          echo "DailyCore_ROOT=$PWD/$sdk" >> "$GITHUB_ENV"
+
+      - name: Configure
+        run: >
+          cmake -S . -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
+          -DCMAKE_PREFIX_PATH="$PWD/pipecat"
+          -DPIPECAT_DAILY_WARNINGS_AS_ERRORS=ON
+          -DPIPECAT_DAILY_BUILD_DOCS=${{ matrix.docs && 'ON' || 'OFF' }}
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Build the API reference
+        if: matrix.docs
+        run: cmake --build build --target docs
+
+      - name: Test
+        working-directory: build
+        run: ctest --output-on-failure
+
+      - name: Install
+        run: cmake --install build --prefix "$PWD/install"
+
+      - name: Build against installed package
+        run: |
+          cmake -S tests/package -B build-package -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
+            -DCMAKE_PREFIX_PATH="$PWD/install;$PWD/pipecat"
+          cmake --build build-package
+          ./build-package/package_test
+
+      - name: Build the examples
+        run: |
+          for example in text voice; do
+            cmake -S "examples/$example" -B "build-$example" -G Ninja \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
+              -DCMAKE_PREFIX_PATH="$PWD/install;$PWD/pipecat"
+            cmake --build "build-$example"
+          done
+
+  windows:
+    name: Windows x86_64 (MSVC)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/checkout@v7
+        with:
+          repository: pipecat-ai/pipecat-client-cxx
+          ref: ${{ env.PIPECAT_CLIENT_REF }}
+          path: pipecat-client-cxx
+
+      - name: Build the Pipecat client
+        run: |
+          $env:VCPKG_ROOT = $env:VCPKG_INSTALLATION_ROOT
+          cmake -S pipecat-client-cxx --preset vcpkg -DPIPECAT_BUILD_TESTS=OFF
+          cmake --build pipecat-client-cxx/build --config Release
+          cmake --install pipecat-client-cxx/build --config Release --prefix "$pwd/pipecat"
+
+      - name: Download Daily Core
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $sdk = "daily-core-sdk-$env:DAILY_CORE_VERSION-windows-x86_64"
+          gh release download "v$env:DAILY_CORE_VERSION" --repo daily-co/daily-core-sdk --pattern "$sdk.zip"
+          Expand-Archive "$sdk.zip" -DestinationPath .
+          "DailyCore_ROOT=$pwd/$sdk" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Configure
+        run: |
+          $env:VCPKG_ROOT = $env:VCPKG_INSTALLATION_ROOT
+          cmake --preset vcpkg "-DCMAKE_PREFIX_PATH=$pwd/pipecat" -DPIPECAT_DAILY_WARNINGS_AS_ERRORS=ON
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Test
+        run: ctest --test-dir build -C Release --output-on-failure
