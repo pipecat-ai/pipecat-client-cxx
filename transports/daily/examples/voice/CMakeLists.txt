@@ -8,7 +8,7 @@ cmake_minimum_required(VERSION 3.16)
 
 project(pipecat_daily_voice_chat LANGUAGES CXX)
 
-find_package(pipecat_daily 1.0 REQUIRED)
+find_package(pipecat 1.0 REQUIRED COMPONENTS daily)
 
 # PortAudio comes from vcpkg on Windows and has a pkg-config file elsewhere.
 if(WIN32)

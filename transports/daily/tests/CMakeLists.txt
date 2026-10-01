@@ -4,21 +4,6 @@
 # SPDX-License-Identifier: BSD-2-Clause
 #
 
-# Prefer an installed GoogleTest and fall back to downloading it.
-find_package(GTest 1.10 CONFIG QUIET)
-if(NOT GTest_FOUND)
-  message(STATUS "GoogleTest not found, downloading it")
-  include(FetchContent)
-  FetchContent_Declare(googletest
-    URL https://github.com/google/googletest/archive/refs/tags/v1.18.0.tar.gz
-    URL_HASH SHA256=6e3191c1455468b3fc35a417fb565c1c5071aee1b7e7f85e30cf48a98d37d8b5
-  )
-  set(gtest_force_shared_crt ON)
-  set(INSTALL_GTEST OFF)
-  set(BUILD_GMOCK OFF)
-  FetchContent_MakeAvailable(googletest)
-endif()
-
 add_executable(pipecat_daily_tests
   test_audio_buffer.cpp
   test_session.cpp
@@ -32,7 +17,9 @@ set_target_properties(pipecat_daily_tests PROPERTIES
 )
 
 # Tests also cover private code in src/.
-target_include_directories(pipecat_daily_tests PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_include_directories(pipecat_daily_tests PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/../src
+)
 
 target_link_libraries(pipecat_daily_tests PRIVATE
   pipecat::daily
@@ -48,5 +35,4 @@ if(WIN32)
   )
 endif()
 
-include(GoogleTest)
 gtest_discover_tests(pipecat_daily_tests)

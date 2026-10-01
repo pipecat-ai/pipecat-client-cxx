@@ -8,7 +8,7 @@ cmake_minimum_required(VERSION 3.16)
 
 project(pipecat_daily_text_chat LANGUAGES CXX)
 
-find_package(pipecat_daily 1.0 REQUIRED)
+find_package(pipecat 1.0 REQUIRED COMPONENTS daily)
 
 add_executable(text_chat main.cpp)
 target_link_libraries(text_chat PRIVATE pipecat::daily)
