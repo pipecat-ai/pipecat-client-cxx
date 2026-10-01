@@ -17,10 +17,11 @@ supports Linux (`x86_64` and `aarch64`), macOS (`aarch64`) and Windows
 
 ## 🌐 Transports
 
-`pipecat-client-cxx` needs a transport in order to connect to your Pipecat
-bot. Currently available transports:
+`pipecat-client-cxx` needs a transport to connect to your Pipecat bot. These
+are in this repository, and each is built only when you ask for it (see
+[Building](#transports)):
 
-- [Daily Transport for Pipecat C++ Client SDK](https://github.com/pipecat-ai/pipecat-client-cxx-daily)
+- [Daily](transports/daily): connects to the bot's Daily room, using WebRTC.
 
 You can also [write your own](#-writing-a-transport).
 
@@ -145,6 +146,23 @@ cmake --preset vcpkg
 cmake --build build --config Release
 ```
 
+### Transports
+
+Add the option of each transport you want. The Daily transport, for example,
+also needs the [Daily Core C++ SDK](https://github.com/daily-co/daily-core-sdk)
+0.23.0 or newer: download it for your platform from its
+[releases](https://github.com/daily-co/daily-core-sdk/releases), unpack it and
+point `DailyCore_ROOT` to it:
+
+```bash
+cmake . -G Ninja -Bbuild -DCMAKE_BUILD_TYPE=Release \
+  -DPIPECAT_BUILD_DAILY=ON \
+  -DDailyCore_ROOT=/path/to/daily-core-sdk
+ninja -C build
+```
+
+See each transport's README for more, e.g. [Daily](transports/daily).
+
 ### Cross-compiling (Linux aarch64)
 
 You need an `aarch64` cross compiler (`g++-aarch64-linux-gnu` on Debian and
@@ -169,8 +187,17 @@ find_package(pipecat 1.0 REQUIRED)
 target_link_libraries(my_app PRIVATE pipecat::pipecat)
 ```
 
+Transports are components of the package. Ask for the ones you built, which
+also finds their dependencies:
+
+```cmake
+find_package(pipecat 1.0 REQUIRED COMPONENTS daily)
+target_link_libraries(my_app PRIVATE pipecat::daily)
+```
+
 You can also include this repository with `add_subdirectory()` or
-`FetchContent` and link to the same `pipecat::pipecat` target.
+`FetchContent`, setting the transport options before, and link to the same
+targets.
 
 A `pipecat.pc` file is also installed for Meson and other build systems that
 use pkg-config. Add `/path/to/pipecat/lib/pkgconfig` to `PKG_CONFIG_PATH` and

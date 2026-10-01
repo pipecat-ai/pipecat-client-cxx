@@ -223,6 +223,7 @@ if(PIPECAT_BUILD_DOCS)
   set(DOXYGEN_STRIP_FROM_PATH
     ${PROJECT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_BINARY_DIR}/include
+    ${PROJECT_SOURCE_DIR}/transports/daily/include
   )
   set(DOXYGEN_STRIP_FROM_INC_PATH ${DOXYGEN_STRIP_FROM_PATH})
   # Warn about anything public that isn't documented.
@@ -241,10 +242,14 @@ if(PIPECAT_BUILD_DOCS)
     set(DOXYGEN_WARN_AS_ERROR FAIL_ON_WARNINGS)
   endif()
 
+  # The transports are always documented. Doxygen only reads their headers, so
+  # it doesn't need their dependencies.
   doxygen_add_docs(docs
     ${PROJECT_SOURCE_DIR}/docs/mainpage.md
     ${PROJECT_SOURCE_DIR}/include/pipecat
     ${CMAKE_CURRENT_BINARY_DIR}/include/pipecat/version.h
+    ${PROJECT_SOURCE_DIR}/transports/daily/docs/daily.md
+    ${PROJECT_SOURCE_DIR}/transports/daily/include/pipecat/daily
     COMMENT "Generating the API reference"
   )
 endif()

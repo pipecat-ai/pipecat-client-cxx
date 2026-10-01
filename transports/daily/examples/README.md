@@ -10,8 +10,8 @@
 
 ## Building
 
-First build and install the Pipecat C++ client and this transport, following
-the main [README](../README.md).
+First build and install the Pipecat C++ client with the Daily transport,
+following the transport's [README](../README.md).
 
 The voice example also needs PortAudio:
 
@@ -28,7 +28,7 @@ the text example:
 
 ```bash
 cmake -S text -B build-text -G Ninja -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_PREFIX_PATH="/path/to/pipecat;/path/to/pipecat_daily" \
+  -DCMAKE_PREFIX_PATH=/path/to/pipecat \
   -DDailyCore_ROOT=/path/to/daily-core-sdk
 ninja -C build-text
 ```
@@ -40,7 +40,7 @@ On Windows, the examples get their dependencies from
 them:
 
 ```bash
-cmake -S text -B build-text -DCMAKE_TOOLCHAIN_FILE=%VCPKG_ROOT%/scripts/buildsystems/vcpkg.cmake -DCMAKE_PREFIX_PATH="C:/path/to/pipecat;C:/path/to/pipecat_daily" -DDailyCore_ROOT=C:/path/to/daily-core-sdk
+cmake -S text -B build-text -DCMAKE_TOOLCHAIN_FILE=%VCPKG_ROOT%/scripts/buildsystems/vcpkg.cmake -DCMAKE_PREFIX_PATH=C:/path/to/pipecat -DDailyCore_ROOT=C:/path/to/daily-core-sdk
 cmake --build build-text --config Release
 ```
 

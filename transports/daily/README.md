@@ -1,18 +1,12 @@
-<h1><div align="center">
- <img alt="pipecat" width="500px" height="auto" src="https://raw.githubusercontent.com/pipecat-ai/pipecat-client-cxx-daily/main/pipecat-cxx.png">
-</div></h1>
+# Daily transport
 
-[![Docs](https://img.shields.io/badge/Documentation-blue)](https://docs.pipecat.ai) [![Discord](https://img.shields.io/discord/1239284677165056021)](https://discord.gg/pipecat)
-
-# Daily Transport for Pipecat C++ Client SDK
-
-`pipecat-client-cxx-daily` is a transport for the
-[Pipecat C++ Client SDK](https://github.com/pipecat-ai/pipecat-client-cxx)
-that connects to [Pipecat](https://pipecat.ai) bots over
-[Daily](https://www.daily.co), using WebRTC.
+`pipecat::DailyTransport` is a transport for the
+[Pipecat C++ Client SDK](../../README.md) that connects to
+[Pipecat](https://pipecat.ai) bots over [Daily](https://www.daily.co), using
+WebRTC.
 
 It supports Linux (`x86_64` and `aarch64`), macOS (`aarch64`) and Windows
-(`x86_64`). It needs a C++17 compiler.
+(`x86_64`).
 
 ## 🚀 Usage
 
@@ -44,7 +38,7 @@ int main() {
 ```
 
 Then use the client as usual, see the
-[Pipecat C++ Client SDK](https://github.com/pipecat-ai/pipecat-client-cxx).
+[Pipecat C++ Client SDK](../../README.md).
 
 - The transport joins the bot's Daily room. Start endpoints like Pipecat Cloud
   or Pipecat's development runner (`python bot.py -t daily`) create one when
@@ -68,65 +62,61 @@ a bot on your machine or on Pipecat Cloud.
 ## 📚 Documentation
 
 - Guides: [docs.pipecat.ai](https://docs.pipecat.ai)
-- Pipecat C++ Client SDK API reference:
-  [docs-cxx.pipecat.ai](https://docs-cxx.pipecat.ai)
-- Changes and migration from 0.x: [CHANGELOG.md](CHANGELOG.md)
+- API reference: [docs-cxx.pipecat.ai](https://docs-cxx.pipecat.ai), which
+  includes the Daily transport
+- Changes and migration from 0.x: [CHANGELOG.md](../../CHANGELOG.md)
 
 ## 🛠️ Building
 
-You need:
-
-- A C++17 compiler (GCC 9 or newer, Clang, Apple Clang or MSVC) and CMake
-  3.16 or newer.
-- The [Pipecat C++ Client SDK](https://github.com/pipecat-ai/pipecat-client-cxx)
-  1.0. Build and install it following its README.
-- The [Daily Core C++ SDK](https://github.com/daily-co/daily-core-sdk) 0.23.0
-  or newer. Download it for your platform from its
-  [releases](https://github.com/daily-co/daily-core-sdk/releases) and unpack
-  it.
+The transport is built with the Pipecat client, from the root of this
+repository, when you add `-DPIPECAT_BUILD_DAILY=ON`. Besides what the client
+needs (see its [README](../../README.md)), you need the
+[Daily Core C++ SDK](https://github.com/daily-co/daily-core-sdk) 0.23.0 or
+newer. Download it for your platform from its
+[releases](https://github.com/daily-co/daily-core-sdk/releases) and unpack it.
 
 ### Linux and macOS
 
 ```bash
 cmake . -G Ninja -Bbuild -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_PREFIX_PATH=/path/to/pipecat \
+  -DPIPECAT_BUILD_DAILY=ON \
   -DDailyCore_ROOT=/path/to/daily-core-sdk
 ninja -C build
 ```
 
 ### Windows
 
-Like the Pipecat client, this gets libcurl and nlohmann/json from
-[vcpkg](https://vcpkg.io/en/), so `VCPKG_ROOT` needs to point to it. Then:
-
 ```bash
-cmake --preset vcpkg -DCMAKE_PREFIX_PATH=C:/path/to/pipecat -DDailyCore_ROOT=C:/path/to/daily-core-sdk
+cmake --preset vcpkg -DPIPECAT_BUILD_DAILY=ON -DDailyCore_ROOT=C:/path/to/daily-core-sdk
 cmake --build build --config Release
 ```
 
 ### Cross-compiling (Linux aarch64)
 
-Build the Pipecat client for `aarch64` too, and use the `linux-arm64` Daily
-Core SDK:
+Use the `linux-arm64` Daily Core SDK:
 
 ```bash
 cmake . -G Ninja -Bbuild -DCMAKE_TOOLCHAIN_FILE=aarch64-linux-toolchain.cmake -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_PREFIX_PATH=/path/to/pipecat-aarch64 \
+  -DPIPECAT_BUILD_DAILY=ON \
   -DDailyCore_ROOT=/path/to/daily-core-sdk-linux-arm64
 ninja -C build
 ```
 
+Its tests are built and run with the client's.
+
 ## 📥 Installing
 
+This installs the client and the transport:
+
 ```bash
-cmake --install build --prefix /path/to/pipecat_daily
+cmake --install build --prefix /path/to/pipecat
 ```
 
-Then, in your CMake project, point `CMAKE_PREFIX_PATH` to both the Pipecat
-client and this transport, `DailyCore_ROOT` to the Daily Core SDK, and use:
+Then, in your CMake project, point `CMAKE_PREFIX_PATH` to that directory,
+`DailyCore_ROOT` to the Daily Core SDK, and use:
 
 ```cmake
-find_package(pipecat_daily 1.0 REQUIRED)
+find_package(pipecat 1.0 REQUIRED COMPONENTS daily)
 target_link_libraries(my_app PRIVATE pipecat::daily)
 ```
 
@@ -138,26 +128,5 @@ Daily Core is a shared library, so ship it with your app. On Windows, put
 in the Daily Core SDK's README.
 
 You can also include this repository with `add_subdirectory()` or
-`FetchContent`, after the Pipecat client, and link to the same
+`FetchContent`: set `PIPECAT_BUILD_DAILY` to `ON` before, and link to the same
 `pipecat::daily` target.
-
-## 🧪 Testing
-
-Unit tests use [GoogleTest](https://github.com/google/googletest), which is
-downloaded if it's not installed. They are built by default, except when
-cross-compiling, and you can turn them off with `-DPIPECAT_DAILY_BUILD_TESTS=OFF`.
-
-```bash
-cd build && ctest --output-on-failure
-```
-
-## 📖 Building the API reference
-
-The API reference is generated with [Doxygen](https://www.doxygen.nl). Add
-`-DPIPECAT_DAILY_BUILD_DOCS=ON` when configuring, and then:
-
-```bash
-ninja -C build docs
-```
-
-It's written to `build/docs/html`.

@@ -118,6 +118,13 @@ class App : public pipecat::PipecatClientCallbacks {
 | [rtvi](@ref pipecat::rtvi) | RTVI messages and their data, e.g. [BotOutputData](@ref pipecat::rtvi::BotOutputData). |
 | [PipecatError](@ref pipecat::PipecatError) | Base class of all the errors the client throws. |
 
+## Transports
+
+The SDK comes with these transports. Each is a separate library, built only
+when you ask for it:
+
+- [Daily](@ref daily): connects to bots in a Daily room, using WebRTC.
+
 ## Connecting
 
 Connecting to a bot takes two steps:

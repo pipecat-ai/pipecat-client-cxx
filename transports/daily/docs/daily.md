@@ -1,13 +1,9 @@
-# Overview
+# Daily transport {#daily}
 
-The Daily transport connects the
-[Pipecat C++ Client SDK](https://github.com/pipecat-ai/pipecat-client-cxx)
-to Pipecat bots over [Daily](https://www.daily.co), using WebRTC.
-
-This is its API reference. For the client itself, see the
-[Pipecat C++ Client SDK reference](https://docs-cxx.pipecat.ai). To install
-the transport and get started, see the
-[README](https://github.com/pipecat-ai/pipecat-client-cxx-daily).
+The Daily transport, [DailyTransport](@ref pipecat::DailyTransport), connects
+the client to Pipecat bots over [Daily](https://www.daily.co), using WebRTC.
+To build it, see its
+[README](https://github.com/pipecat-ai/pipecat-client-cxx/tree/main/transports/daily).
 
 ## Using it
 

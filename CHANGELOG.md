@@ -12,6 +12,9 @@ current Pipecat bots speak, and in line with the JavaScript client
 (`@pipecat-ai/client-js`). It's not compatible with earlier versions, which
 were never tagged (0.x), see [Migrating from 0.x](#migrating-from-0x).
 
+The Daily transport is now part of this repository, see
+[Daily transport](#daily-transport).
+
 ### Added
 
 - `pipecat::PipecatClient`, the new client:
@@ -75,6 +78,63 @@ were never tagged (0.x), see [Migrating from 0.x](#migrating-from-0x).
 - Slow function calls no longer block other events.
 - libcurl handles are no longer leaked when starting the bot fails.
 
+### Daily transport
+
+The Daily transport moved here from
+[pipecat-client-cxx-daily](https://github.com/pipecat-ai/pipecat-client-cxx-daily),
+and was rewritten for this version, like the client.
+
+#### Added
+
+- `pipecat::DailyTransport`, in `<pipecat/daily/transport.h>`, built with
+  `-DPIPECAT_BUILD_DAILY=ON`. `DailyTransportOptions` sets the audio sample
+  rate and channels.
+- Connecting with the Daily room that start endpoints, like Pipecat Cloud,
+  return (`dailyRoom` and `dailyToken`), or with `url` and `token`.
+- Daily errors, and the call ending unexpectedly (e.g. when the room is
+  closed), are reported to the client.
+- Several clients with a `DailyTransport` can run at the same time, e.g. to
+  talk to several bots.
+- The `daily` component of the CMake package
+  (`find_package(pipecat COMPONENTS daily)` and `pipecat::daily`), which also
+  finds the Daily Core SDK.
+- Text chat and voice chat (PortAudio) examples that work with a bot on your
+  machine or on Pipecat Cloud.
+- It's documented in the client's API reference, and tested in its CI.
+
+#### Changed
+
+- Daily Core C++ SDK 0.23.0 or newer. It's a shared library, so apps ship it
+  with them (see the transport's README).
+- The Daily Core SDK is found through its CMake package: point
+  `DailyCore_ROOT` or `CMAKE_PREFIX_PATH` to it, instead of setting
+  `DAILY_CORE_PATH`.
+- Daily Core is told the version of the SDK the transport is built with,
+  instead of a fixed one.
+- User audio is sent with a custom audio track, and bot audio is received from
+  the bot's track, instead of through Daily Core's virtual microphone and
+  speaker, which only one transport per app can use. User audio no longer
+  goes through echo cancellation, so apps that play the bot through speakers
+  need their platform's echo cancellation or headphones.
+
+#### Removed
+
+- `rtvi::DailyVoiceClient` and `include/daily_rtvi.h`. Use a
+  `pipecat::PipecatClient` with a `DailyTransport` instead.
+- Daily Bots support. Start your bots with Pipecat Cloud or your own start
+  endpoint.
+- `cmake/FindDailyPipecat.cmake` and the `DAILY_PIPECAT_SDK_PATH` environment
+  variable.
+- The Daily Bots examples and their Node.js server.
+
+#### Fixed
+
+- Joining a room fails with a `TransportStartError` if Daily returns an
+  error, e.g. because of a wrong token, instead of looking connected.
+- Rooms that don't need a token can be joined without one.
+- A second transport no longer breaks the first one, and Daily Core is shut
+  down after the last transport is destroyed.
+
 ### Migrating from 0.x
 
 | 0.x | 1.0 |
@@ -90,3 +150,16 @@ were never tagged (0.x), see [Migrating from 0.x](#migrating-from-0x).
 | `RTVILLMHelper` and `on_function_call()` | `register_function_call_handler()` |
 | `RTVITransport` | `Transport` and `TransportObserver` |
 | `FindPipecat.cmake` and `PIPECAT_SDK_PATH` | `find_package(pipecat)` with `CMAKE_PREFIX_PATH`, or pkg-config |
+
+For the Daily transport:
+
+| 0.x | 1.0 |
+| --- | --- |
+| The `pipecat-client-cxx-daily` repository | `transports/daily` in this repository, built with `-DPIPECAT_BUILD_DAILY=ON` |
+| `#include "daily_rtvi.h"` | `#include <pipecat/daily/transport.h>` and `#include <pipecat/pipecat.h>` |
+| `rtvi::DailyVoiceClient` | `pipecat::PipecatClient`, with a `pipecat::DailyTransport` in its options |
+| `rtvi::DailyTransportParams` | `pipecat::DailyTransportOptions` |
+| Daily Bots start URL and configuration | A start endpoint, like Pipecat Cloud, with `createDailyRoom` |
+| `room_url` and `token` in the connection info | `url` (or `dailyRoom` or `room_url`) and `token` (or `dailyToken`) |
+| `FindDailyPipecat.cmake` and `DAILY_PIPECAT_SDK_PATH` | `find_package(pipecat COMPONENTS daily)` with `CMAKE_PREFIX_PATH` |
+| `DAILY_CORE_PATH` | `DailyCore_ROOT` |
