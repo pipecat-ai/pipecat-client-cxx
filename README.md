@@ -19,6 +19,7 @@ It supports Linux (`x86_64` and `aarch64`), macOS (`aarch64`) and Windows
 are the available transports (see [Building transports](#-building-transports)):
 
 - [Daily](transports/daily): connects to the bot's Daily room, using WebRTC.
+- [WebSocket](transports/websocket): connects to the bot's WebSocket.
 
 You can also [write your own](#-writing-a-transport).
 
@@ -92,8 +93,9 @@ auto weather = client.send_client_request("get-weather", {{"city", "SF"}}).get()
 - [text](examples/text): chat with a bot in the terminal.
 - [voice](examples/voice): talk with a bot using your microphone and speakers.
 
-They use the Daily transport. See [examples/README.md](examples/README.md) to
-build them and run them with a bot on your machine or on Pipecat Cloud.
+They use the Daily or the WebSocket transport. See
+[examples/README.md](examples/README.md) to build them and run them with a bot
+on your machine or on Pipecat Cloud.
 
 ## 🧵 Threading
 
@@ -197,12 +199,14 @@ with the client:
 ```bash
 cmake . -G Ninja -Bbuild -DCMAKE_BUILD_TYPE=Release \
   -DPIPECAT_BUILD_DAILY=ON \
-  -DDailyCore_ROOT=/path/to/daily-core-sdk
+  -DDailyCore_ROOT=/path/to/daily-core-sdk \
+  -DPIPECAT_BUILD_WEBSOCKET=ON
 ```
 
 | Transport | Option | Component | Needs |
 | --- | --- | --- | --- |
 | [Daily](transports/daily) | `PIPECAT_BUILD_DAILY` | `daily` | The [Daily Core C++ SDK](https://github.com/daily-co/daily-core-sdk) 0.23.0 or newer, with `DailyCore_ROOT` pointing to it |
+| [WebSocket](transports/websocket) | `PIPECAT_BUILD_WEBSOCKET` | `websocket` | [libdatachannel](https://github.com/paullouisageneau/libdatachannel) 0.24 or newer, which CMake downloads if it's not installed (with OpenSSL), and [speexdsp](https://github.com/xiph/speexdsp) |
 
 Then use them as components of the package, which also finds their
 dependencies. Each component's target is `pipecat::<component>`:
@@ -211,6 +215,10 @@ dependencies. Each component's target is `pipecat::<component>`:
 find_package(pipecat 1.0 REQUIRED COMPONENTS daily)
 target_link_libraries(my_app PRIVATE pipecat::daily)
 ```
+
+If your app can do without a transport, ask for it in `OPTIONAL_COMPONENTS`
+instead. When it wasn't installed, or its dependencies aren't found, the
+package is still found, with `pipecat_<component>_FOUND` off.
 
 With `add_subdirectory()` or `FetchContent`, set the options before adding
 this repository.

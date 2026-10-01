@@ -6,19 +6,28 @@
 
 // Talks with a Pipecat bot using the default microphone and speakers.
 //
-// Usage: voice_chat START_URL
+// Usage: voice_chat [--transport TRANSPORT] START_URL
 //
 // START_URL is the bot's start endpoint, e.g. http://localhost:7860/start for
 // a local bot or https://api.pipecat.daily.co/v1/public/AGENT/start for
 // Pipecat Cloud. If PIPECAT_API_KEY is set, it's sent as a bearer token.
+//
+// TRANSPORT is how to connect to the bot: `daily` (the default) or
+// `websocket`, if the example was built with it.
 //
 // If the bot has a `get_current_time` function for the client to run, this
 // example answers it.
 
 #include "audio.h"
 
-#include <pipecat/daily/transport.h>
 #include <pipecat/pipecat.h>
+
+#ifdef PIPECAT_EXAMPLE_DAILY
+#include <pipecat/daily/transport.h>
+#endif
+#ifdef PIPECAT_EXAMPLE_WEBSOCKET
+#include <pipecat/websocket/transport.h>
+#endif
 
 #include <atomic>
 #include <chrono>
@@ -30,6 +39,7 @@
 #include <set>
 #include <string>
 #include <thread>
+#include <vector>
 
 namespace {
 
@@ -87,25 +97,63 @@ std::string current_time() {
     return text;
 }
 
+// Creates the transport called `name`, if the example was built with it, and
+// asks the start endpoint for a bot that uses it.
+std::unique_ptr<pipecat::Transport>
+make_transport(const std::string& name, pipecat::APIRequest& request) {
+#ifdef PIPECAT_EXAMPLE_DAILY
+    if (name == "daily") {
+        pipecat::DailyTransportOptions options;
+        options.user_audio_sample_rate = SAMPLE_RATE;
+        options.bot_audio_sample_rate = SAMPLE_RATE;
+        request.request_data = {{"createDailyRoom", true}};
+        return std::make_unique<pipecat::DailyTransport>(options);
+    }
+#endif
+#ifdef PIPECAT_EXAMPLE_WEBSOCKET
+    if (name == "websocket") {
+        pipecat::WebSocketTransportOptions options;
+        options.user_audio_sample_rate = SAMPLE_RATE;
+        options.bot_audio_sample_rate = SAMPLE_RATE;
+        request.request_data = {{"transport", "websocket"}};
+        return std::make_unique<pipecat::WebSocketTransport>(options);
+    }
+#endif
+    return nullptr;
+}
+
 }  // namespace
 
 int main(int argc, char* argv[]) {
-    if (argc != 2) {
-        std::cerr << "Usage: " << argv[0] << " START_URL" << std::endl;
+    std::vector<std::string> args(argv + 1, argv + argc);
+    std::string transport = "daily";
+    if (args.size() == 3 && args[0] == "--transport") {
+        transport = args[1];
+        args.erase(args.begin(), args.begin() + 2);
+    }
+    if (args.size() != 1) {
+        std::cerr << "Usage: " << argv[0]
+                  << " [--transport TRANSPORT] START_URL" << std::endl;
         return EXIT_FAILURE;
     }
 
     std::signal(SIGINT, [](int) { running = false; });
 
+    pipecat::APIRequest request;
+    request.endpoint = args[0];
+    if (const char* api_key = std::getenv("PIPECAT_API_KEY")) {
+        request.headers["Authorization"] = std::string("Bearer ") + api_key;
+    }
+
     App app;
 
-    pipecat::DailyTransportOptions transport_options;
-    transport_options.user_audio_sample_rate = SAMPLE_RATE;
-    transport_options.bot_audio_sample_rate = SAMPLE_RATE;
-
     pipecat::PipecatClientOptions options;
-    options.transport =
-            std::make_unique<pipecat::DailyTransport>(transport_options);
+    options.transport = make_transport(transport, request);
+    if (!options.transport) {
+        std::cerr << "This example was built without the " << transport
+                  << " transport" << std::endl;
+        return EXIT_FAILURE;
+    }
     options.callbacks = &app;
     pipecat::PipecatClient client(std::move(options));
 
@@ -116,13 +164,6 @@ int main(int argc, char* argv[]) {
                 respond({{"time", current_time()}});
             }
     );
-
-    pipecat::APIRequest request;
-    request.endpoint = argv[1];
-    request.request_data = {{"createDailyRoom", true}};
-    if (const char* api_key = std::getenv("PIPECAT_API_KEY")) {
-        request.headers["Authorization"] = std::string("Bearer ") + api_key;
-    }
 
     try {
         print("Starting the bot...");

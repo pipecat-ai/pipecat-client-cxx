@@ -30,6 +30,7 @@ option(PIPECAT_BUILD_DOCS "Build the API reference with Doxygen" OFF)
 
 # Transports. Each needs its own dependencies, so they're only built when asked.
 option(PIPECAT_BUILD_DAILY "Build the Daily transport" OFF)
+option(PIPECAT_BUILD_WEBSOCKET "Build the WebSocket transport" OFF)
 
 include(GNUInstallDirs)
 
@@ -87,6 +88,7 @@ endfunction()
 # Library
 #
 add_library(pipecat STATIC
+  src/audio_buffer.cpp
   src/client.cpp
   src/event_loop.cpp
   src/http.cpp
@@ -224,6 +226,7 @@ if(PIPECAT_BUILD_DOCS)
     ${PROJECT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_BINARY_DIR}/include
     ${PROJECT_SOURCE_DIR}/transports/daily/include
+    ${PROJECT_SOURCE_DIR}/transports/websocket/include
   )
   set(DOXYGEN_STRIP_FROM_INC_PATH ${DOXYGEN_STRIP_FROM_PATH})
   # Warn about anything public that isn't documented.
@@ -250,6 +253,8 @@ if(PIPECAT_BUILD_DOCS)
     ${CMAKE_CURRENT_BINARY_DIR}/include/pipecat/version.h
     ${PROJECT_SOURCE_DIR}/transports/daily/docs/daily.md
     ${PROJECT_SOURCE_DIR}/transports/daily/include/pipecat/daily
+    ${PROJECT_SOURCE_DIR}/transports/websocket/docs/websocket.md
+    ${PROJECT_SOURCE_DIR}/transports/websocket/include/pipecat/websocket
     COMMENT "Generating the API reference"
   )
 endif()
@@ -284,4 +289,7 @@ endif()
 #
 if(PIPECAT_BUILD_DAILY)
   add_subdirectory(transports/daily)
+endif()
+if(PIPECAT_BUILD_WEBSOCKET)
+  add_subdirectory(transports/websocket)
 endif()

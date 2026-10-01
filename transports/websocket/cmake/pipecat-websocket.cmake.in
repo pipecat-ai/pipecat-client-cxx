@@ -1,0 +1,43 @@
+#
+# Copyright (c) 2024-2026, Daily
+#
+# SPDX-License-Identifier: BSD-2-Clause
+#
+
+# The WebSocket transport, pipecat::websocket, loaded by
+# find_package(pipecat COMPONENTS websocket).
+
+# A static libdatachannel's package doesn't look for OpenSSL itself.
+if("@PIPECAT_WEBSOCKET_LIBDATACHANNEL_TYPE@" STREQUAL "STATIC_LIBRARY")
+  find_package(OpenSSL QUIET)
+  if(NOT OpenSSL_FOUND)
+    set(pipecat_websocket_NOT_FOUND_MESSAGE
+      "The websocket component needs OpenSSL: point OPENSSL_ROOT_DIR to it"
+    )
+    return()
+  endif()
+endif()
+
+find_package(LibDataChannel @PIPECAT_WEBSOCKET_MIN_LIBDATACHANNEL_VERSION@ CONFIG QUIET)
+if(NOT LibDataChannel_FOUND)
+  set(pipecat_websocket_NOT_FOUND_MESSAGE
+    "The websocket component needs libdatachannel @PIPECAT_WEBSOCKET_MIN_LIBDATACHANNEL_VERSION@ or newer"
+  )
+  return()
+endif()
+
+# With FindSpeexDSP.cmake, installed next to this file.
+set(_pipecat_module_path "${CMAKE_MODULE_PATH}")
+list(PREPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}")
+find_package(SpeexDSP QUIET)
+set(CMAKE_MODULE_PATH "${_pipecat_module_path}")
+if(NOT SpeexDSP_FOUND)
+  set(pipecat_websocket_NOT_FOUND_MESSAGE
+    "The websocket component needs speexdsp"
+  )
+  return()
+endif()
+
+include("${CMAKE_CURRENT_LIST_DIR}/pipecat-websocket-targets.cmake")
+
+set(pipecat_websocket_FOUND TRUE)

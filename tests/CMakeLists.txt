@@ -5,6 +5,7 @@
 #
 
 add_executable(pipecat_tests
+  test_audio_buffer.cpp
   test_client.cpp
   test_event_loop.cpp
   test_messaging.cpp

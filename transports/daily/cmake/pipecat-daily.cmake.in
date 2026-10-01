@@ -8,7 +8,13 @@
 # find_package(pipecat COMPONENTS daily). Point DailyCore_ROOT or
 # CMAKE_PREFIX_PATH to the Daily Core SDK.
 
-find_dependency(DailyCore @PIPECAT_DAILY_MIN_DAILY_CORE_VERSION@ CONFIG)
+find_package(DailyCore @PIPECAT_DAILY_MIN_DAILY_CORE_VERSION@ CONFIG QUIET)
+if(NOT DailyCore_FOUND)
+  set(pipecat_daily_NOT_FOUND_MESSAGE
+    "The daily component needs the Daily Core SDK @PIPECAT_DAILY_MIN_DAILY_CORE_VERSION@ or newer: point DailyCore_ROOT or CMAKE_PREFIX_PATH to it"
+  )
+  return()
+endif()
 
 include("${CMAKE_CURRENT_LIST_DIR}/pipecat-daily-targets.cmake")
 

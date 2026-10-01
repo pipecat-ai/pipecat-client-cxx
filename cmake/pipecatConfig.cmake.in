@@ -15,15 +15,24 @@ find_dependency(nlohmann_json 3.7)
 include("${CMAKE_CURRENT_LIST_DIR}/pipecatTargets.cmake")
 
 # Transports are components, e.g. find_package(pipecat COMPONENTS daily) for
-# pipecat::daily. Each loads its own dependencies.
+# pipecat::daily. Each component's file finds its dependencies, and sets the
+# component as found if they are, or why it isn't.
 foreach(_pipecat_component IN LISTS pipecat_FIND_COMPONENTS)
+  set(pipecat_${_pipecat_component}_FOUND FALSE)
   set(_pipecat_file "${CMAKE_CURRENT_LIST_DIR}/pipecat-${_pipecat_component}.cmake")
   if(EXISTS "${_pipecat_file}")
     include("${_pipecat_file}")
   else()
-    set(pipecat_${_pipecat_component}_FOUND FALSE)
-    set(pipecat_NOT_FOUND_MESSAGE
+    set(pipecat_${_pipecat_component}_NOT_FOUND_MESSAGE
       "pipecat was built without the ${_pipecat_component} transport"
+    )
+  endif()
+  # Only required components fail the package, e.g. not the ones in
+  # OPTIONAL_COMPONENTS.
+  if(NOT pipecat_${_pipecat_component}_FOUND
+      AND pipecat_FIND_REQUIRED_${_pipecat_component})
+    set(pipecat_NOT_FOUND_MESSAGE
+      "${pipecat_${_pipecat_component}_NOT_FOUND_MESSAGE}"
     )
   endif()
 endforeach()
