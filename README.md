@@ -10,16 +10,13 @@
 client applications, such as robots, kiosks, smart devices or games, that talk
 to a Pipecat bot.
 
-It implements the RTVI protocol 2.1, like the
-[JavaScript client](https://github.com/pipecat-ai/pipecat-client-web), and
-supports Linux (`x86_64` and `aarch64`), macOS (`aarch64`) and Windows
+It supports Linux (`x86_64` and `aarch64`), macOS (`aarch64`) and Windows
 (`x86_64`). It needs a C++17 compiler.
 
 ## 🌐 Transports
 
 `pipecat-client-cxx` needs a transport to connect to your Pipecat bot. These
-are in this repository, and each is built only when you ask for it (see
-[Building](#transports)):
+are the available transports (see [Building](#transports)):
 
 - [Daily](transports/daily): connects to the bot's Daily room, using WebRTC.
 
