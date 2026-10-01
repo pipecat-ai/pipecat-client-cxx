@@ -41,8 +41,11 @@ class AudioBuffer {
     const size_t _channels;
     const size_t _max_frames;
 
+    // Guarded by _mutex. _cv wakes up readers when audio arrives or the
+    // buffer closes.
     std::mutex _mutex;
     std::condition_variable _cv;
+    // Interleaved samples, oldest first.
     std::deque<int16_t> _samples;
     bool _open = false;
 };

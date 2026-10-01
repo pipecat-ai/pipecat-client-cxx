@@ -53,6 +53,10 @@ bool has_string(const json& j, const char* key, const char* value) {
 
 class DailyTransport::Impl {
    public:
+    //
+    // Connection
+    //
+
     explicit Impl(DailyTransportOptions options)
         : _options(options),
           // Keep up to a second of bot audio the app hasn't read.
@@ -208,6 +212,10 @@ class DailyTransport::Impl {
         _requests.clear();
     }
 
+    //
+    // Messages to the bot
+    //
+
     void send_ready_message(const rtvi::Message& message) {
         std::shared_ptr<daily::Session> session;
         {
@@ -224,6 +232,10 @@ class DailyTransport::Impl {
             send_app_message(json(message).dump());
         }
     }
+
+    //
+    // Audio
+    //
 
     int32_t send_user_audio(const int16_t* frames, size_t num_frames) {
         if (!_connected) {
@@ -427,22 +439,27 @@ class DailyTransport::Impl {
     }
 
     DailyTransportOptions _options;
+
+    // Set up once, by initialize().
     TransportObserver* _observer = nullptr;
     bool _initialized = false;
-
     // Keeps daily-core running while the transport exists.
     std::unique_ptr<daily::ContextRef> _context;
-
+    // Sends the user's audio.
     DailyAudioSource* _audio_source = nullptr;
     DailyAudioTrack* _audio_track = nullptr;
     std::string _audio_track_id;
+
+    // The bot's audio, until the app reads it.
     daily::AudioBuffer _bot_audio;
+    // Whether the transport is in a call. Atomic, since the audio methods
+    // read it on audio threads.
+    std::atomic<bool> _connected {false};
 
     // Guards the call client and its session.
     std::mutex _mutex;
     DailyRawCallClient* _client = nullptr;
     std::shared_ptr<daily::Session> _session;
-    std::atomic<bool> _connected {false};
 
     // Requests waiting for their results, by ID.
     std::mutex _requests_mutex;

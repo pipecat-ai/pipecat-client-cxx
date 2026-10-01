@@ -62,16 +62,22 @@ class Session {
     void handle_call_state(const nlohmann::json& event);
     void handle_error(const nlohmann::json& event);
 
+    // Set once, when the session is created.
     TransportObserver* _observer;
     SendAppMessage _send_app_message;
     CaptureBotAudio _capture_bot_audio;
 
+    // Guarded by _mutex.
     mutable std::mutex _mutex;
     // The first remote participant is the bot.
     std::optional<Participant> _bot;
     bool _bot_audio_playable = false;
+    // client-ready, until the bot's audio is playable.
     std::optional<std::string> _ready_message;
+    // Set by set_leaving(). From then on, participant, app message and call
+    // state events are ignored.
     bool _leaving = false;
+    // The call ended without being asked to.
     bool _left = false;
 };
 
