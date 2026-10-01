@@ -1,0 +1,25 @@
+//
+// Copyright (c) 2024-2026, Daily
+//
+// SPDX-License-Identifier: BSD-2-Clause
+//
+
+/// @file
+/// Version of the library.
+
+#ifndef PIPECAT_VERSION_H
+#define PIPECAT_VERSION_H
+
+/// Version of the library, e.g. "1.0.0".
+#define PIPECAT_VERSION "@PROJECT_VERSION@"
+
+/// Major version. It changes when the API changes in incompatible ways.
+#define PIPECAT_VERSION_MAJOR @PROJECT_VERSION_MAJOR@
+
+/// Minor version. It changes when features are added.
+#define PIPECAT_VERSION_MINOR @PROJECT_VERSION_MINOR@
+
+/// Patch version. It changes when bugs are fixed.
+#define PIPECAT_VERSION_PATCH @PROJECT_VERSION_PATCH@
+
+#endif

@@ -1,0 +1,59 @@
+name: docs
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build API reference
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            cmake doxygen libcurl4-openssl-dev ninja-build nlohmann-json3-dev
+
+      - uses: actions/checkout@v7
+
+      # Fails on Doxygen warnings, e.g. broken references.
+      - name: Build
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DPIPECAT_BUILD_DOCS=ON \
+            -DPIPECAT_BUILD_TESTS=OFF \
+            -DPIPECAT_WARNINGS_AS_ERRORS=ON
+          cmake --build build --target docs
+
+      - uses: actions/upload-pages-artifact@v5
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          path: build/docs/html
+
+  # Publishes the API reference to GitHub Pages for each release, served at
+  # docs-cxx.pipecat.ai. The custom domain is set in the repository's Pages
+  # settings, since Pages ignores CNAME files when deploying from Actions.
+  deploy:
+    name: Publish API reference
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
