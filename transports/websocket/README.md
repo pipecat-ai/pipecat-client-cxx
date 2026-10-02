@@ -80,11 +80,13 @@ client needs (see its [README](../../README.md)), you need:
   newer, for its WebSocket client. CMake downloads and builds it if it's not
   installed, which needs OpenSSL.
 - [speexdsp](https://github.com/xiph/speexdsp), to convert the bot's audio.
+  If it's not installed, CMake downloads it and builds what the transport
+  needs into it.
 
 ### Linux
 
 ```bash
-sudo apt-get install libssl-dev libspeexdsp-dev
+sudo apt-get install libssl-dev
 cmake . -G Ninja -Bbuild -DCMAKE_BUILD_TYPE=Release -DPIPECAT_BUILD_WEBSOCKET=ON
 ninja -C build
 ```
@@ -96,7 +98,7 @@ Homebrew's OpenSSL, which isn't where CMake looks, so point
 `OPENSSL_ROOT_DIR` to it:
 
 ```bash
-brew install openssl@3 speexdsp
+brew install openssl@3
 export OPENSSL_ROOT_DIR=$(brew --prefix openssl@3)
 cmake . -G Ninja -Bbuild -DCMAKE_BUILD_TYPE=Release -DPIPECAT_BUILD_WEBSOCKET=ON
 ninja -C build
@@ -113,8 +115,8 @@ cmake --build build --config Release
 
 ### Cross-compiling (Linux aarch64)
 
-Besides what the client needs, you need the `aarch64` versions of OpenSSL and
-speexdsp. Then add `-DPIPECAT_BUILD_WEBSOCKET=ON` to the client's
+Besides what the client needs, you need the `aarch64` version of OpenSSL.
+Then add `-DPIPECAT_BUILD_WEBSOCKET=ON` to the client's
 [cross-compiling](../../README.md#cross-compiling-linux-aarch64) command.
 
 Its tests are built and run with the client's.
@@ -135,10 +137,10 @@ find_package(pipecat 1.0 REQUIRED COMPONENTS websocket)
 target_link_libraries(my_app PRIVATE pipecat::websocket)
 ```
 
-`pipecat::websocket` also links the Pipecat client, libdatachannel and
-speexdsp. If CMake downloaded libdatachannel, it's installed with the
-transport, as a static library, and your app also needs OpenSSL (on macOS,
-with `OPENSSL_ROOT_DIR` pointing to it).
+`pipecat::websocket` also links the Pipecat client, libdatachannel, and
+speexdsp if it was installed. If CMake downloaded libdatachannel, it's
+installed with the transport, as a static library, and your app also needs
+OpenSSL (on macOS, with `OPENSSL_ROOT_DIR` pointing to it).
 
 You can also include this repository with `add_subdirectory()` or
 `FetchContent`: set `PIPECAT_BUILD_WEBSOCKET` to `ON` before, and link to the

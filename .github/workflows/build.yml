@@ -148,12 +148,12 @@ jobs:
     name: Linux x86_64 (Clang, ThreadSanitizer)
     runs-on: ubuntu-24.04
     steps:
+      # Without speexdsp, so the build downloads it, which the other jobs don't.
       - name: Install dependencies
         run: |
           sudo apt-get update
           sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-            clang cmake ninja-build libcurl4-openssl-dev libspeexdsp-dev libssl-dev \
-            nlohmann-json3-dev
+            clang cmake ninja-build libcurl4-openssl-dev libssl-dev nlohmann-json3-dev
 
       # ThreadSanitizer in Clang 18 fails to start with the runner's default
       # address space randomization.

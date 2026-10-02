@@ -150,8 +150,8 @@ and was rewritten for this version, like the client.
   speexdsp, and dropped when the bot is interrupted.
 - The `websocket` component of the CMake package
   (`find_package(pipecat COMPONENTS websocket)` and `pipecat::websocket`),
-  which also finds libdatachannel and speexdsp. libdatachannel is downloaded
-  if it's not installed.
+  which also finds libdatachannel and speexdsp. Both are downloaded if
+  they're not installed.
 - The examples can use it, with `--transport websocket`.
 
 ### Migrating from 0.x
