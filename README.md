@@ -2,7 +2,7 @@
  <img alt="pipecat" width="500px" height="auto" src="https://raw.githubusercontent.com/pipecat-ai/pipecat-client-cxx/main/pipecat-cxx.png">
 </div></h1>
 
-[![Docs](https://img.shields.io/badge/Documentation-blue)](https://docs.pipecat.ai) [![Discord](https://img.shields.io/discord/1239284677165056021)](https://discord.gg/pipecat)
+[![Build](https://github.com/pipecat-ai/pipecat-client-cxx/actions/workflows/build.yml/badge.svg)](https://github.com/pipecat-ai/pipecat-client-cxx/actions/workflows/build.yml) [![Docs](https://img.shields.io/badge/Documentation-blue)](https://docs.pipecat.ai/api-reference/client/cpp/overview) [![Discord](https://img.shields.io/discord/1239284677165056021)](https://discord.gg/pipecat)
 
 # Pipecat C++ Client SDK
 
@@ -114,7 +114,7 @@ on your machine or on Pipecat Cloud.
 
 ## 📚 Documentation
 
-- Guides: [docs.pipecat.ai](https://docs.pipecat.ai)
+- Guides: [docs.pipecat.ai](https://docs.pipecat.ai/api-reference/client/cpp/overview)
 - API reference: [docs-cxx.pipecat.ai](https://docs-cxx.pipecat.ai)
 - Changes and migration from 0.x: [CHANGELOG.md](CHANGELOG.md)
 
