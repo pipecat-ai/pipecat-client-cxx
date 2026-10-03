@@ -258,3 +258,39 @@ ninja -C build docs
 ```
 
 It's written to `build/docs/html`.
+
+## 🔄 Migrating from 0.x
+
+Version 1.0 is a rewrite that brings the SDK up to RTVI protocol 2.1, so apps
+written for 0.x need some changes. This is where 0.x's API went:
+
+| 0.x | 1.0 |
+| --- | --- |
+| `#include "rtvi.h"` | `#include <pipecat/pipecat.h>` |
+| `rtvi::RTVIClient` | `pipecat::PipecatClient` |
+| `RTVIClientOptions` and a transport argument | `PipecatClientOptions`, with the transport in it |
+| `RTVIEventCallbacks` | `PipecatClientCallbacks` |
+| `initialize()` and `connect()` to the endpoint in the options | `start_bot_and_connect(request)`, or `start_bot()` and `connect()` |
+| `on_bot_transcript()` | `on_bot_output()` |
+| `on_generic_message()` | `on_unhandled_message()` |
+| `send_action()` and service configuration | `send_client_message()` or `send_client_request()`, handled by your bot |
+| `RTVILLMHelper` and `on_function_call()` | `on_llm_function_call_in_progress()`, answered with its `respond` callback |
+| `RTVITransport` | `Transport` and `TransportObserver` |
+| `FindPipecat.cmake` and `PIPECAT_SDK_PATH` | `find_package(pipecat)` with `CMAKE_PREFIX_PATH`, or pkg-config |
+
+For the Daily transport:
+
+| 0.x | 1.0 |
+| --- | --- |
+| The `pipecat-client-cxx-daily` repository | `transports/daily` in this repository, built with `-DPIPECAT_BUILD_DAILY=ON` |
+| `#include "daily_rtvi.h"` | `#include <pipecat/daily/transport.h>` and `#include <pipecat/pipecat.h>` |
+| `rtvi::DailyVoiceClient` | `pipecat::PipecatClient`, with a `pipecat::DailyTransport` in its options |
+| `rtvi::DailyTransportParams` | `pipecat::DailyTransportOptions` |
+| Daily Bots start URL and configuration | A start endpoint, like Pipecat Cloud, with `createDailyRoom` |
+| `room_url` and `token` in the connection info | `url` (or `dailyRoom` or `room_url`) and `token` (or `dailyToken`) |
+| `FindDailyPipecat.cmake` and `DAILY_PIPECAT_SDK_PATH` | `find_package(pipecat COMPONENTS daily)` with `CMAKE_PREFIX_PATH` |
+| `DAILY_CORE_PATH` | `DailyCore_ROOT` |
+
+## 📄 License
+
+The SDK is licensed under the [BSD 2-Clause License](LICENSE).
