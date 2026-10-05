@@ -20,6 +20,8 @@
 
 namespace pipecat {
 
+struct APIRequest;
+
 /// The state of the connection to the bot.
 enum class TransportState {
     Disconnected,    ///< Not connected.
@@ -84,7 +86,8 @@ class TransportObserver {
 /// Implement this to add a new transport. Only PipecatClient calls these
 /// methods, and never from inside a TransportObserver method, so connect() and
 /// disconnect() can wait for the transport's own events. It calls
-/// initialize(), connect() and disconnect() one at a time.
+/// initialize(), set_start_bot_params(), connect() and disconnect() one at a
+/// time.
 class Transport {
    public:
     virtual ~Transport() = default;
@@ -92,6 +95,14 @@ class Transport {
     /// Prepares the transport. Called once, before anything else, with the
     /// observer to send events to.
     virtual void initialize(TransportObserver* observer) = 0;
+
+    /// Receives the request PipecatClient::start_bot() is about to send to
+    /// start the bot.
+    ///
+    /// Transports that connect through the server that started the bot can
+    /// use it to find where to connect, e.g. when the server only answers with
+    /// a session ID. Does nothing by default.
+    virtual void set_start_bot_params(const APIRequest& /* request */) {}
 
     /// Connects to the bot and returns once connected.
     ///

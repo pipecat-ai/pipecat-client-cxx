@@ -178,6 +178,24 @@ TEST(StartBot, PostsRequestAndReturnsResponse) {
     EXPECT_NE(raw.find(R"({"createDailyRoom":true})"), std::string::npos);
 }
 
+TEST(StartBot, GivesTheRequestToTheTransport) {
+    HttpServer server(200, R"({"sessionId": "1234"})");
+    Recorder recorder;
+    auto [transport, client] = make_client(recorder);
+
+    APIRequest request;
+    request.endpoint = server.url();
+    request.headers = {{"Authorization", "Bearer secret"}};
+    request.request_data = {{"transport", "webrtc"}};
+    client->start_bot(request);
+
+    auto params = transport->start_bot_params();
+    ASSERT_TRUE(params.has_value());
+    EXPECT_EQ(params->endpoint, server.url());
+    EXPECT_EQ(params->headers, request.headers);
+    EXPECT_EQ(params->request_data, request.request_data);
+}
+
 TEST(StartBot, ErrorResponse) {
     HttpServer server(401, R"({"info": "Invalid API key"})");
     Recorder recorder;

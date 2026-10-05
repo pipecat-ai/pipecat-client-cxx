@@ -224,6 +224,9 @@ Implement `pipecat::Transport` (see `include/pipecat/transport.h`):
   calls them from inside an observer call.
 - `send_ready_message()` receives the `client-ready` message. Send it once the
   bot can receive it, which may be after `connect()` returns.
+- `set_start_bot_params()` receives the request `start_bot()` sends. Override
+  it if the transport connects through the server that started the bot, e.g.
+  when the server only answers with a session ID.
 
 ## 🧪 Testing
 

@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `Transport::set_start_bot_params()` receives the request
+  `PipecatClient::start_bot()` sends, so transports that connect through the
+  server that started the bot can find where to connect. It does nothing by
+  default, so existing transports don't need to change.
+
 ## [1.0.0] - 2026-10-02
 
 ### Added

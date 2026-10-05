@@ -9,6 +9,7 @@
 
 #include "event_loop.h"
 
+#include "pipecat/client.h"
 #include "pipecat/errors.h"
 #include "pipecat/transport.h"
 
@@ -65,6 +66,11 @@ class FakeTransport : public pipecat::Transport {
     void initialize(pipecat::TransportObserver* observer) override {
         _observer = observer;
         initialize_count++;
+    }
+
+    void set_start_bot_params(const pipecat::APIRequest& request) override {
+        std::lock_guard<std::mutex> lock(_mutex);
+        _start_bot_params = request;
     }
 
     void connect(const nlohmann::json& params) override {
@@ -176,6 +182,11 @@ class FakeTransport : public pipecat::Transport {
 
     bool connected() const { return _connected; }
 
+    std::optional<pipecat::APIRequest> start_bot_params() {
+        std::lock_guard<std::mutex> lock(_mutex);
+        return _start_bot_params;
+    }
+
     nlohmann::json connect_params() {
         std::lock_guard<std::mutex> lock(_mutex);
         return _connect_params;
@@ -239,6 +250,7 @@ class FakeTransport : public pipecat::Transport {
 
     std::mutex _mutex;
     std::condition_variable _sent_cv;
+    std::optional<pipecat::APIRequest> _start_bot_params;
     nlohmann::json _connect_params;
     std::optional<pipecat::rtvi::Message> _ready_message;
     std::vector<pipecat::rtvi::Message> _sent_messages;
