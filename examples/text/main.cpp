@@ -13,13 +13,16 @@
 // a local bot or https://api.pipecat.daily.co/v1/public/AGENT/start for
 // Pipecat Cloud. If PIPECAT_API_KEY is set, it's sent as a bearer token.
 //
-// TRANSPORT is how to connect to the bot: `daily` (the default) or
-// `websocket`, if the example was built with it.
+// TRANSPORT is how to connect to the bot: `daily` (the default),
+// `smallwebrtc` or `websocket`, if the example was built with it.
 
 #include <pipecat/pipecat.h>
 
 #ifdef PIPECAT_EXAMPLE_DAILY
 #include <pipecat/daily/transport.h>
+#endif
+#ifdef PIPECAT_EXAMPLE_SMALLWEBRTC
+#include <pipecat/smallwebrtc/transport.h>
 #endif
 #ifdef PIPECAT_EXAMPLE_WEBSOCKET
 #include <pipecat/websocket/transport.h>
@@ -88,6 +91,15 @@ make_transport(const std::string& name, pipecat::APIRequest& request) {
     if (name == "daily") {
         request.request_data = {{"createDailyRoom", true}};
         return std::make_unique<pipecat::DailyTransport>();
+    }
+#endif
+#ifdef PIPECAT_EXAMPLE_SMALLWEBRTC
+    if (name == "smallwebrtc") {
+        // Bots on other networks need a STUN server to be reached.
+        request.request_data = {
+                {"transport", "webrtc"}, {"enableDefaultIceServers", true}
+        };
+        return std::make_unique<pipecat::SmallWebRTCTransport>();
     }
 #endif
 #ifdef PIPECAT_EXAMPLE_WEBSOCKET

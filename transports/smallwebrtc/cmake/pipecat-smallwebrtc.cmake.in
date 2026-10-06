@@ -1,0 +1,31 @@
+#
+# Copyright (c) 2024-2026, Daily
+#
+# SPDX-License-Identifier: BSD-2-Clause
+#
+
+# The SmallWebRTC transport, pipecat::smallwebrtc, loaded by
+# find_package(pipecat COMPONENTS smallwebrtc).
+
+# A static libdatachannel's package doesn't look for OpenSSL itself.
+if("@PIPECAT_SMALLWEBRTC_LIBDATACHANNEL_TYPE@" STREQUAL "STATIC_LIBRARY")
+  find_package(OpenSSL QUIET)
+  if(NOT OpenSSL_FOUND)
+    set(pipecat_smallwebrtc_NOT_FOUND_MESSAGE
+      "The smallwebrtc component needs OpenSSL: point OPENSSL_ROOT_DIR to it"
+    )
+    return()
+  endif()
+endif()
+
+find_package(LibDataChannel @PIPECAT_SMALLWEBRTC_MIN_LIBDATACHANNEL_VERSION@ CONFIG QUIET)
+if(NOT LibDataChannel_FOUND)
+  set(pipecat_smallwebrtc_NOT_FOUND_MESSAGE
+    "The smallwebrtc component needs libdatachannel @PIPECAT_SMALLWEBRTC_MIN_LIBDATACHANNEL_VERSION@ or newer"
+  )
+  return()
+endif()
+
+include("${CMAKE_CURRENT_LIST_DIR}/pipecat-smallwebrtc-targets.cmake")
+
+set(pipecat_smallwebrtc_FOUND TRUE)
