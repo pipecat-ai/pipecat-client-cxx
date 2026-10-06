@@ -33,9 +33,13 @@ if(NOT LibDataChannel_FOUND)
     GIT_SHALLOW TRUE
     GIT_SUBMODULES deps/libjuice deps/libsrtp deps/plog deps/usrsctp
     # So closing tells the bot right away, instead of it noticing about 30
-    # seconds later.
-    PATCH_COMMAND ${GIT_EXECUTABLE} apply --ignore-whitespace
-      ${CMAKE_CURRENT_SOURCE_DIR}/patches/libdatachannel-dtls-close-notify.patch
+    # seconds later, and so resetting a channel's callbacks while it closes
+    # isn't a data race. They're applied to the tag as downloaded, so a
+    # source patched before gets the patches as they are now.
+    PATCH_COMMAND ${GIT_EXECUTABLE} reset --hard --quiet
+      COMMAND ${GIT_EXECUTABLE} apply --ignore-whitespace
+        ${CMAKE_CURRENT_SOURCE_DIR}/patches/libdatachannel-dtls-close-notify.patch
+        ${CMAKE_CURRENT_SOURCE_DIR}/patches/libdatachannel-stored-callback-lock.patch
     # The tag never changes, and updating would patch it again.
     UPDATE_DISCONNECTED TRUE
   )
