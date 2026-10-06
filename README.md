@@ -99,19 +99,6 @@ They use the Daily or the WebSocket transport. See
 [examples/README.md](examples/README.md) to build them and run them with a bot
 on your machine or on Pipecat Cloud.
 
-## 🧵 Threading
-
-- `start_bot()`, `connect()` and `disconnect()` block the calling thread.
-  Everything else returns right away. All methods are thread-safe.
-- Callbacks and `send_client_request()` callbacks run on the client's own
-  event thread, one at a time and in order. You can call any client method
-  from them, including `disconnect()` or waiting on a `send_client_request()`
-  future.
-- Events wait while a callback runs, so keep callbacks short. Function calls
-  can be answered later instead of blocking.
-- Callbacks must not throw, and must not destroy the client.
-- Call `send_user_audio()` and `read_bot_audio()` from your own audio threads.
-
 ## 📚 Documentation
 
 - Guides: [docs.pipecat.ai](https://docs.pipecat.ai/api-reference/client/cpp/overview)
