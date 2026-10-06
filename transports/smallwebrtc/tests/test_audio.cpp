@@ -52,13 +52,49 @@ Packets encode(
     return packets;
 }
 
-Samples decode(AudioDecoder& decoder, const Packets& packets) {
+// RTP timestamps of 20 ms packets.
+const uint32_t FIRST_TIMESTAMP = 1234567;
+const uint32_t PACKET_TICKS = 960;
+
+// Packets 0 to `count` - 1, in order.
+std::vector<size_t> in_order(size_t count) {
+    std::vector<size_t> order(count);
+    for (size_t i = 0; i < count; ++i) {
+        order[i] = i;
+    }
+    return order;
+}
+
+// Decodes `packets` as they'd arrive: `order` has their indexes, and each has
+// the timestamp of its index.
+Samples decode(
+        AudioDecoder& decoder,
+        const Packets& packets,
+        const std::vector<size_t>& order,
+        uint32_t first_timestamp = FIRST_TIMESTAMP
+) {
     Samples samples;
-    for (const auto& packet: packets) {
-        Samples decoded = decoder.decode(packet.data(), packet.size());
+    for (size_t i: order) {
+        auto timestamp =
+                first_timestamp + static_cast<uint32_t>(i) * PACKET_TICKS;
+        Samples decoded =
+                decoder.decode(packets[i].data(), packets[i].size(), timestamp);
         samples.insert(samples.end(), decoded.begin(), decoded.end());
     }
     return samples;
+}
+
+Samples decode(AudioDecoder& decoder, const Packets& packets) {
+    return decode(decoder, packets, in_order(packets.size()));
+}
+
+// Removes packets from `order`.
+std::vector<size_t>
+without(std::vector<size_t> order, const std::vector<size_t>& lost) {
+    for (size_t packet: lost) {
+        order.erase(std::find(order.begin(), order.end(), packet));
+    }
+    return order;
 }
 
 // Checks that mono audio is still the 440 Hz tone, which crosses zero 880
@@ -112,8 +148,63 @@ TEST(AudioEncoder, RoundTripAtOtherSampleRates) {
     expect_tone(decoded, 44100);
 }
 
+TEST(AudioDecoder, ConcealsLostPackets) {
+    AudioEncoder encoder(16000, 1);
+    Packets packets = encode(encoder, tone(16000), 1, 320);
+    AudioDecoder decoder(16000);
+    Samples decoded =
+            decode(decoder, packets, without(in_order(50), {10, 20, 21}));
+
+    // The lost 60 ms are still there, so the audio plays in time.
+    EXPECT_EQ(decoded.size(), 16000u);
+    expect_tone(decoded, 16000);
+}
+
+TEST(AudioDecoder, DropsLateAndRepeatedPackets) {
+    AudioEncoder encoder(16000, 1);
+    Packets packets = encode(encoder, tone(16000), 1, 320);
+    AudioDecoder decoder(16000);
+    Samples expected = decode(decoder, packets);
+
+    std::vector<size_t> order = in_order(50);
+    // Packet 5 again, after 12, and 30 twice.
+    order.insert(order.begin() + 13, 5);
+    order.insert(order.begin() + 32, 30);
+    AudioDecoder other(16000);
+    EXPECT_EQ(decode(other, packets, order), expected);
+}
+
+TEST(AudioDecoder, TimestampsWrapAround) {
+    AudioEncoder encoder(16000, 1);
+    Packets packets = encode(encoder, tone(16000), 1, 320);
+    AudioDecoder decoder(16000);
+    // The timestamps wrap around after packet 10, and packet 12 is lost.
+    uint32_t first = UINT32_MAX - 10 * PACKET_TICKS + 1;
+    Samples decoded =
+            decode(decoder, packets, without(in_order(50), {12}), first);
+    EXPECT_EQ(decoded.size(), 16000u);
+}
+
+TEST(AudioDecoder, DoesNotConcealJumps) {
+    AudioEncoder encoder(16000, 1);
+    Packets packets = encode(encoder, tone(16000), 1, 320);
+    AudioDecoder decoder(16000);
+    Samples decoded;
+    for (size_t i = 0; i < packets.size(); ++i) {
+        // A second later after packet 25, which isn't lost audio.
+        uint32_t timestamp = FIRST_TIMESTAMP +
+                             static_cast<uint32_t>(i) * PACKET_TICKS +
+                             (i >= 25 ? 48000 : 0);
+        Samples samples =
+                decoder.decode(packets[i].data(), packets[i].size(), timestamp);
+        decoded.insert(decoded.end(), samples.begin(), samples.end());
+    }
+    EXPECT_EQ(decoded.size(), 16000u);
+}
+
 TEST(AudioDecoder, IgnoresInvalidPackets) {
     AudioDecoder decoder(16000);
     std::vector<std::byte> packet {std::byte {0xff}};
-    EXPECT_TRUE(decoder.decode(packet.data(), packet.size()).empty());
+    EXPECT_TRUE(decoder.decode(packet.data(), packet.size(), FIRST_TIMESTAMP)
+                        .empty());
 }

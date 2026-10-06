@@ -146,9 +146,11 @@ class SmallWebRTCTransport::Impl {
         auto decoder = std::make_shared<smallwebrtc::AudioDecoder>(
                 _options.bot_audio_sample_rate
         );
-        track->onFrame([this, decoder](rtc::binary packet, rtc::FrameInfo) {
-            std::vector<int16_t> samples =
-                    decoder->decode(packet.data(), packet.size());
+        track->onFrame([this,
+                        decoder](rtc::binary packet, rtc::FrameInfo info) {
+            std::vector<int16_t> samples = decoder->decode(
+                    packet.data(), packet.size(), info.timestamp
+            );
             _bot_audio.write(samples.data(), samples.size(), 1);
         });
 

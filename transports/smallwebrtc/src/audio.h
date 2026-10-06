@@ -12,6 +12,7 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <vector>
 
 struct OpusEncoder;
@@ -50,7 +51,8 @@ class AudioEncoder {
     std::vector<int16_t> _pending;
 };
 
-// Decodes the bot's Opus packets into mono 16-bit PCM. Not thread-safe.
+// Decodes the bot's Opus packets into mono 16-bit PCM, and conceals the ones
+// that were lost. Not thread-safe.
 class AudioDecoder {
    public:
     // Decodes audio to `sample_rate`. Throws std::runtime_error if Opus can't
@@ -61,14 +63,19 @@ class AudioDecoder {
     AudioDecoder(const AudioDecoder&) = delete;
     AudioDecoder& operator=(const AudioDecoder&) = delete;
 
-    // Decodes a packet. Returns nothing if it's invalid.
-    std::vector<int16_t> decode(const std::byte* data, size_t size);
+    // Decodes a packet with RTP timestamp `timestamp`. If packets before it
+    // were lost, starts with audio that conceals them. Returns nothing if the
+    // packet is invalid, or late or repeated.
+    std::vector<int16_t>
+    decode(const std::byte* data, size_t size, uint32_t timestamp);
 
    private:
     // The audio decoded at a sample rate Opus supports, then converted.
     const uint32_t _opus_sample_rate;
     Resampler _resampler;
     OpusDecoder* _decoder = nullptr;
+    // The RTP timestamp the next packet should have.
+    std::optional<uint32_t> _next_timestamp;
 };
 
 }  // namespace pipecat::smallwebrtc
