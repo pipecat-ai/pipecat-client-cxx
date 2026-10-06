@@ -12,7 +12,6 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
-#include <optional>
 #include <vector>
 
 struct OpusEncoder;
@@ -51,6 +50,9 @@ class AudioEncoder {
     std::vector<int16_t> _pending;
 };
 
+// Opus' RTP timestamps count at 48 kHz, whatever the audio's sample rate.
+const uint32_t RTP_CLOCK_RATE = 48000;
+
 // Decodes the bot's Opus packets into mono 16-bit PCM, and conceals the ones
 // that were lost. Not thread-safe.
 class AudioDecoder {
@@ -63,19 +65,27 @@ class AudioDecoder {
     AudioDecoder(const AudioDecoder&) = delete;
     AudioDecoder& operator=(const AudioDecoder&) = delete;
 
-    // Decodes a packet with RTP timestamp `timestamp`. If packets before it
-    // were lost, starts with audio that conceals them. Returns nothing if the
-    // packet is invalid, or late or repeated.
-    std::vector<int16_t>
-    decode(const std::byte* data, size_t size, uint32_t timestamp);
+    // How long a packet plays, in RTP timestamp units, or 0 if it's invalid.
+    static uint32_t duration(const std::byte* data, size_t size);
+
+    // Decodes a packet. Returns nothing if it's invalid.
+    std::vector<int16_t> decode(const std::byte* data, size_t size);
+
+    // Makes up `duration` of audio, in RTP timestamp units, from the audio
+    // before it, where packets were lost. Opus does it in steps of 2.5 ms, so
+    // the rest is left out.
+    std::vector<int16_t> conceal(uint32_t duration);
 
    private:
+    // Decodes `size` bytes of `data`, or conceals if there's no data, into
+    // `frames` frames, and converts them.
+    std::vector<int16_t>
+    decode(const std::byte* data, size_t size, size_t frames);
+
     // The audio decoded at a sample rate Opus supports, then converted.
     const uint32_t _opus_sample_rate;
     Resampler _resampler;
     OpusDecoder* _decoder = nullptr;
-    // The RTP timestamp the next packet should have.
-    std::optional<uint32_t> _next_timestamp;
 };
 
 }  // namespace pipecat::smallwebrtc

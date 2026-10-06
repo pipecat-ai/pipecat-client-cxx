@@ -104,13 +104,15 @@ class SmallWebRTCTransport : public Transport {
     /// mono, which is what the bot listens to.
     int32_t send_user_audio(const int16_t* frames, size_t num_frames) override;
 
-    /// Reads up to `num_frames` frames of 16-bit PCM bot audio into `frames`,
-    /// converted to the format of the options. Waits until there's audio to
-    /// read, or until the transport disconnects. Returns the number of frames
+    /// Reads `num_frames` frames of 16-bit PCM bot audio into `frames`,
+    /// converted to the format of the options. Waits until it's time to play
+    /// them, or until the transport disconnects. Returns the number of frames
     /// read, or 0 if it disconnected.
     ///
-    /// The bot's audio arrives as it plays. The transport keeps up to a
-    /// second of it, so read it as you play it.
+    /// The bot's audio plays at the pace the bot sent it, 80 ms behind, so
+    /// the network's ups and downs don't reach your app: audio that arrives
+    /// late or out of order still plays in its turn, and lost audio is
+    /// concealed. Read it from your audio thread, as you play it.
     int32_t read_bot_audio(int16_t* frames, size_t num_frames) override;
 
    private:

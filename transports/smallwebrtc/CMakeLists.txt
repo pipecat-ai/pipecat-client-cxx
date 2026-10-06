@@ -125,6 +125,7 @@ endif()
 #
 add_library(pipecat_smallwebrtc STATIC
   src/audio.cpp
+  src/jitter_buffer.cpp
   src/params.cpp
   src/resampler.cpp
   src/transport.cpp

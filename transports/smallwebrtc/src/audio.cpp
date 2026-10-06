@@ -8,7 +8,6 @@
 
 #include <opus.h>
 
-#include <algorithm>
 #include <stdexcept>
 #include <string>
 
@@ -18,10 +17,6 @@ namespace {
 
 // Big enough for any packet Opus makes.
 const size_t MAX_PACKET_SIZE = 1500;
-// Opus' RTP timestamps count at 48 kHz, whatever the audio's sample rate.
-const uint32_t RTP_CLOCK_RATE = 48000;
-// Longer gaps aren't lost packets but a jump, so they're not concealed.
-const std::chrono::milliseconds MAX_CONCEALED {100};
 // Opus conceals audio in steps of 2.5 ms, in RTP timestamp units.
 const uint32_t CONCEAL_STEP = RTP_CLOCK_RATE / 400;
 
@@ -132,60 +127,52 @@ AudioDecoder::~AudioDecoder() {
     opus_decoder_destroy(_decoder);
 }
 
-std::vector<int16_t>
-AudioDecoder::decode(const std::byte* data, size_t size, uint32_t timestamp) {
-    auto packet = reinterpret_cast<const unsigned char*>(data);
-    auto packet_size = static_cast<opus_int32>(size);
-    int packet_frames = opus_packet_get_nb_samples(
-            packet, packet_size, static_cast<opus_int32>(_opus_sample_rate)
+uint32_t AudioDecoder::duration(const std::byte* data, size_t size) {
+    int frames = opus_packet_get_nb_samples(
+            reinterpret_cast<const unsigned char*>(data),
+            static_cast<opus_int32>(size),
+            static_cast<opus_int32>(RTP_CLOCK_RATE)
     );
-    if (packet_frames <= 0) {
+    return frames > 0 ? static_cast<uint32_t>(frames) : 0;
+}
+
+std::vector<int16_t> AudioDecoder::decode(const std::byte* data, size_t size) {
+    int frames = opus_packet_get_nb_samples(
+            reinterpret_cast<const unsigned char*>(data),
+            static_cast<opus_int32>(size),
+            static_cast<opus_int32>(_opus_sample_rate)
+    );
+    if (frames <= 0) {
         return {};
     }
+    return decode(data, size, static_cast<size_t>(frames));
+}
 
-    // RTP timestamps per frame of audio.
-    const uint32_t ticks_per_frame = RTP_CLOCK_RATE / _opus_sample_rate;
-
-    std::vector<int16_t> samples;
-    if (_next_timestamp) {
-        // Timestamps wrap around, so the gap is their difference as signed.
-        auto gap = static_cast<int32_t>(timestamp - *_next_timestamp);
-        if (gap < 0) {
-            return {};
-        }
-        // Opus conceals audio in steps of 2.5 ms.
-        uint32_t lost =
-                static_cast<uint32_t>(gap) / CONCEAL_STEP * CONCEAL_STEP;
-        if (lost > 0 && lost <= frames_in(MAX_CONCEALED, RTP_CLOCK_RATE)) {
-            samples.resize(lost / ticks_per_frame);
-            int frames = opus_decode(
-                    _decoder,
-                    nullptr,
-                    0,
-                    samples.data(),
-                    static_cast<int>(samples.size()),
-                    0
-            );
-            samples.resize(static_cast<size_t>(std::max(frames, 0)));
-        }
+std::vector<int16_t> AudioDecoder::conceal(uint32_t duration) {
+    uint32_t steps = duration / CONCEAL_STEP;
+    size_t frames = steps * CONCEAL_STEP / (RTP_CLOCK_RATE / _opus_sample_rate);
+    if (frames == 0) {
+        return {};
     }
+    return decode(nullptr, 0, frames);
+}
 
-    size_t concealed = samples.size();
-    samples.resize(concealed + static_cast<size_t>(packet_frames));
-    int frames = opus_decode(
+std::vector<int16_t>
+AudioDecoder::decode(const std::byte* data, size_t size, size_t frames) {
+    std::vector<int16_t> samples(frames);
+    int decoded = opus_decode(
             _decoder,
-            packet,
-            packet_size,
-            samples.data() + concealed,
-            packet_frames,
+            reinterpret_cast<const unsigned char*>(data),
+            static_cast<opus_int32>(size),
+            samples.data(),
+            static_cast<int>(frames),
             0
     );
-    samples.resize(concealed + static_cast<size_t>(std::max(frames, 0)));
-    _next_timestamp =
-            timestamp + static_cast<uint32_t>(packet_frames) * ticks_per_frame;
-
+    if (decoded <= 0) {
+        return {};
+    }
     return _resampler.process(
-            samples.data(), samples.size(), 1, _opus_sample_rate
+            samples.data(), static_cast<size_t>(decoded), 1, _opus_sample_rate
     );
 }
 

@@ -6,6 +6,7 @@
 
 add_executable(pipecat_smallwebrtc_tests
   test_audio.cpp
+  test_jitter_buffer.cpp
   test_params.cpp
   test_resampler.cpp
 )
