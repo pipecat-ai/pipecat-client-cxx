@@ -6,6 +6,8 @@
 
 #include "pipecat/smallwebrtc/transport.h"
 
+#include "audio.h"
+#include "audio_buffer.h"
 #include "http.h"
 #include "params.h"
 
@@ -16,10 +18,13 @@
 
 #include <chrono>
 #include <condition_variable>
+#include <cstddef>
 #include <exception>
 #include <mutex>
 #include <optional>
+#include <random>
 #include <string>
+#include <vector>
 
 using nlohmann::json;
 
@@ -39,10 +44,17 @@ const std::chrono::seconds CLOSE_TIMEOUT {5};
 const char* DATA_CHANNEL_LABEL = "chat";
 // Opus, like browsers.
 const int OPUS_PAYLOAD_TYPE = 111;
+const char* AUDIO_CNAME = "pipecat";
+// The bot finds the user's audio on the first transceiver.
+const int AUDIO_TRANSCEIVER_INDEX = 0;
 
-// Messages about the connection itself, from the bot.
+// Keep up to a second of bot audio the app hasn't read.
+const uint32_t BOT_AUDIO_SECONDS = 1;
+
+// Messages about the connection itself, with the bot.
 const char* SIGNALLING_TYPE = "signalling";
 const char* PEER_LEFT_TYPE = "peerLeft";
+const char* TRACK_STATUS_TYPE = "trackStatus";
 
 // Whether `message` is a JSON object of type `type`.
 bool is_type(const json& message, const char* type) {
@@ -53,6 +65,21 @@ bool is_type(const json& message, const char* type) {
     return it != message.end() && *it == type;
 }
 
+// Tells the bot whether the user's audio is on, like client-js does with the
+// microphone.
+void send_audio_status(rtc::DataChannel& dc, bool enabled) {
+    json status = {
+            {"type", TRACK_STATUS_TYPE},
+            {"receiver_index", AUDIO_TRANSCEIVER_INDEX},
+            {"enabled", enabled},
+    };
+    try {
+        dc.send(json({{"type", SIGNALLING_TYPE}, {"message", status}}).dump());
+    } catch (const std::exception&) {
+        // It's closing, which is reported on its own.
+    }
+}
+
 }  // namespace
 
 class SmallWebRTCTransport::Impl {
@@ -60,6 +87,13 @@ class SmallWebRTCTransport::Impl {
     //
     // Connection
     //
+
+    explicit Impl(SmallWebRTCTransportOptions options)
+        : _options(options),
+          _bot_audio(
+                  options.bot_audio_channels,
+                  options.bot_audio_sample_rate * BOT_AUDIO_SECONDS
+          ) {}
 
     ~Impl() { disconnect(); }
 
@@ -89,13 +123,34 @@ class SmallWebRTCTransport::Impl {
             _cv.notify_all();
         });
 
-        // The bot expects audio on the first transceiver, and its audio output
-        // stalls if nobody takes it. Its audio is dropped for now.
+        uint32_t ssrc = std::random_device {}();
         rtc::Description::Audio audio(
                 "0", rtc::Description::Direction::SendRecv
         );
         audio.addOpusCodec(OPUS_PAYLOAD_TYPE);
+        audio.addSSRC(ssrc, AUDIO_CNAME);
         auto track = pc->addTrack(audio);
+
+        // Packetizes the user's audio, and depacketizes the bot's.
+        auto rtp_config = std::make_shared<rtc::RtpPacketizationConfig>(
+                ssrc,
+                AUDIO_CNAME,
+                OPUS_PAYLOAD_TYPE,
+                rtc::OpusRtpPacketizer::DefaultClockRate
+        );
+        auto rtp = std::make_shared<rtc::OpusRtpPacketizer>(rtp_config);
+        rtp->addToChain(std::make_shared<rtc::OpusRtpDepacketizer>());
+        track->setMediaHandler(rtp);
+
+        // Only this callback uses the decoder, one packet at a time.
+        auto decoder = std::make_shared<smallwebrtc::AudioDecoder>(
+                _options.bot_audio_sample_rate
+        );
+        track->onFrame([this, decoder](rtc::binary packet, rtc::FrameInfo) {
+            std::vector<int16_t> samples =
+                    decoder->decode(packet.data(), packet.size());
+            _bot_audio.write(samples.data(), samples.size(), 1);
+        });
 
         auto dc = pc->createDataChannel(DATA_CHANNEL_LABEL);
         dc->onOpen([this] { handle_open(); });
@@ -109,7 +164,14 @@ class SmallWebRTCTransport::Impl {
         _track = track;
         _dc = dc;
         _state = State::Connecting;
+        _encoder = std::make_unique<smallwebrtc::AudioEncoder>(
+                _options.user_audio_sample_rate, _options.user_audio_channels
+        );
+        _sent_packets = 0;
         lock.unlock();
+
+        // The bot can speak as soon as it's connected.
+        _bot_audio.open();
 
         pc->setLocalDescription(rtc::Description::Type::Offer);
 
@@ -164,6 +226,7 @@ class SmallWebRTCTransport::Impl {
         if (!pc) {
             return;
         }
+        _bot_audio.close();
         if (_state != State::Closed) {
             // Closing it ourselves isn't an unexpected disconnection.
             _state = State::Closing;
@@ -208,6 +271,47 @@ class SmallWebRTCTransport::Impl {
         } catch (const std::exception&) {
             // It's closing, which is reported on its own.
         }
+    }
+
+    //
+    // Audio
+    //
+
+    int32_t send_user_audio(const int16_t* frames, size_t num_frames) {
+        std::shared_ptr<rtc::Track> track;
+        std::shared_ptr<rtc::DataChannel> dc;
+        std::vector<std::vector<std::byte>> packets;
+        int64_t first_packet = 0;
+        {
+            std::lock_guard<std::mutex> lock(_mutex);
+            if (_state != State::Open) {
+                return 0;
+            }
+            packets = _encoder->encode(frames, num_frames);
+            first_packet = _sent_packets;
+            _sent_packets += static_cast<int64_t>(packets.size());
+            track = _track;
+            dc = _dc;
+        }
+
+        if (first_packet == 0 && !packets.empty()) {
+            send_audio_status(*dc, true);
+        }
+        for (size_t i = 0; i < packets.size(); ++i) {
+            std::chrono::duration<double> timestamp =
+                    smallwebrtc::PACKET_DURATION *
+                    (first_packet + static_cast<int64_t>(i));
+            try {
+                track->sendFrame(std::move(packets[i]), timestamp);
+            } catch (const std::exception&) {
+                // It's closing, which is reported on its own.
+            }
+        }
+        return static_cast<int32_t>(num_frames);
+    }
+
+    int32_t read_bot_audio(int16_t* frames, size_t num_frames) {
+        return static_cast<int32_t>(_bot_audio.read(frames, num_frames));
     }
 
    private:
@@ -260,7 +364,18 @@ class SmallWebRTCTransport::Impl {
     //
 
     void handle_open() {
-        std::lock_guard<std::mutex> lock(_mutex);
+        std::unique_lock<std::mutex> lock(_mutex);
+        if (_state != State::Connecting) {
+            return;
+        }
+        std::shared_ptr<rtc::DataChannel> dc = _dc;
+        lock.unlock();
+
+        // The user's audio is off until the app sends some. Sent before the
+        // connection opens, so it can't arrive after the audio turns it on.
+        send_audio_status(*dc, false);
+
+        lock.lock();
         if (_state == State::Connecting) {
             _state = State::Open;
             _cv.notify_all();
@@ -282,6 +397,7 @@ class SmallWebRTCTransport::Impl {
                 return;
             }
         }
+        _bot_audio.close();
         _observer->on_transport_disconnected();
     }
 
@@ -314,6 +430,7 @@ class SmallWebRTCTransport::Impl {
         _observer->on_bot_disconnected(bot);
     }
 
+    SmallWebRTCTransportOptions _options;
     TransportObserver* _observer = nullptr;
     // The request that started the bot, if start_bot() did. Only the client's
     // calls, which run one at a time, use it.
@@ -329,10 +446,18 @@ class SmallWebRTCTransport::Impl {
     State _state = State::Closed;
     // The bot, once connected.
     Participant _bot;
+    // Encodes the user's audio, and counts the packets sent, for their
+    // timestamps.
+    std::unique_ptr<smallwebrtc::AudioEncoder> _encoder;
+    int64_t _sent_packets = 0;
+
+    // The bot's audio, converted to the options' format, until the app reads
+    // it.
+    AudioBuffer _bot_audio;
 };
 
-SmallWebRTCTransport::SmallWebRTCTransport()
-    : _impl(std::make_unique<Impl>()) {}
+SmallWebRTCTransport::SmallWebRTCTransport(SmallWebRTCTransportOptions options)
+    : _impl(std::make_unique<Impl>(options)) {}
 
 SmallWebRTCTransport::~SmallWebRTCTransport() = default;
 
@@ -361,17 +486,15 @@ void SmallWebRTCTransport::send_message(const rtvi::Message& message) {
 }
 
 int32_t SmallWebRTCTransport::send_user_audio(
-        const int16_t* /* frames */,
-        size_t /* num_frames */
+        const int16_t* frames,
+        size_t num_frames
 ) {
-    return 0;
+    return _impl->send_user_audio(frames, num_frames);
 }
 
-int32_t SmallWebRTCTransport::read_bot_audio(
-        int16_t* /* frames */,
-        size_t /* num_frames */
-) {
-    return 0;
+int32_t
+SmallWebRTCTransport::read_bot_audio(int16_t* frames, size_t num_frames) {
+    return _impl->read_bot_audio(frames, num_frames);
 }
 
 }  // namespace pipecat

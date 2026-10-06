@@ -20,6 +20,18 @@
 
 namespace pipecat {
 
+/// Options to create a SmallWebRTCTransport.
+struct SmallWebRTCTransportOptions {
+    /// Sample rate of the user audio you send, in Hz.
+    uint32_t user_audio_sample_rate = 16000;
+    /// Number of channels of the user audio you send.
+    uint8_t user_audio_channels = 1;
+    /// Sample rate of the bot audio you read, in Hz.
+    uint32_t bot_audio_sample_rate = 16000;
+    /// Number of channels of the bot audio you read.
+    uint8_t bot_audio_channels = 1;
+};
+
 /// Connects to Pipecat bots over WebRTC, peer to peer, with Pipecat's
 /// SmallWebRTC transport.
 ///
@@ -35,7 +47,7 @@ namespace pipecat {
 class SmallWebRTCTransport : public Transport {
    public:
     /// Creates a transport.
-    SmallWebRTCTransport();
+    explicit SmallWebRTCTransport(SmallWebRTCTransportOptions options = {});
 
     /// Disconnects if needed.
     ~SmallWebRTCTransport() override;
@@ -83,10 +95,22 @@ class SmallWebRTCTransport : public Transport {
     /// Sends a message to the bot.
     void send_message(const rtvi::Message& message) override;
 
-    /// Audio isn't supported yet: sends nothing and returns 0.
+    /// Sends `num_frames` frames of 16-bit PCM user audio, in the format of
+    /// the options. Returns the number of frames sent.
+    ///
+    /// Send the audio continuously, as it's captured, and send silence while
+    /// the user is muted: the bot needs it to tell when the user stops
+    /// speaking. The audio is sent as is, without echo cancellation, and in
+    /// mono, which is what the bot listens to.
     int32_t send_user_audio(const int16_t* frames, size_t num_frames) override;
 
-    /// Audio isn't supported yet: reads nothing and returns 0.
+    /// Reads up to `num_frames` frames of 16-bit PCM bot audio into `frames`,
+    /// converted to the format of the options. Waits until there's audio to
+    /// read, or until the transport disconnects. Returns the number of frames
+    /// read, or 0 if it disconnected.
+    ///
+    /// The bot's audio arrives as it plays. The transport keeps up to a
+    /// second of it, so read it as you play it.
     int32_t read_bot_audio(int16_t* frames, size_t num_frames) override;
 
    private:

@@ -26,6 +26,28 @@ if(NOT LibDataChannel_FOUND)
   return()
 endif()
 
+# libopus, and an installed speexdsp, found with the modules installed next to
+# this file. A downloaded speexdsp is built into the transport.
+set(_pipecat_module_path "${CMAKE_MODULE_PATH}")
+list(PREPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}")
+find_package(Opus QUIET)
+if(NOT @PIPECAT_SMALLWEBRTC_SPEEXDSP_BUILT_IN@)
+  find_package(SpeexDSP QUIET)
+endif()
+set(CMAKE_MODULE_PATH "${_pipecat_module_path}")
+if(NOT Opus_FOUND)
+  set(pipecat_smallwebrtc_NOT_FOUND_MESSAGE
+    "The smallwebrtc component needs libopus"
+  )
+  return()
+endif()
+if(NOT @PIPECAT_SMALLWEBRTC_SPEEXDSP_BUILT_IN@ AND NOT SpeexDSP_FOUND)
+  set(pipecat_smallwebrtc_NOT_FOUND_MESSAGE
+    "The smallwebrtc component needs speexdsp"
+  )
+  return()
+endif()
+
 include("${CMAKE_CURRENT_LIST_DIR}/pipecat-smallwebrtc-targets.cmake")
 
 set(pipecat_smallwebrtc_FOUND TRUE)

@@ -5,7 +5,9 @@
 #
 
 add_executable(pipecat_smallwebrtc_tests
+  test_audio.cpp
   test_params.cpp
+  test_resampler.cpp
 )
 
 set_target_properties(pipecat_smallwebrtc_tests PROPERTIES
