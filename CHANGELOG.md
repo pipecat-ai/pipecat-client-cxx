@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.1.0] - 2026-10-06
 
 ### Added
 
@@ -27,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `pipecat::smallwebrtc`), which also finds libdatachannel, libopus and
     speexdsp. They're downloaded if they're not installed, and a downloaded
     libdatachannel is patched so the bot notices right away when the client
-    disconnects.
+    disconnects, and to fix a data race in its callbacks.
   - The examples can use it, with `--transport smallwebrtc`.
 
 - `Transport::set_start_bot_params()` receives the request
