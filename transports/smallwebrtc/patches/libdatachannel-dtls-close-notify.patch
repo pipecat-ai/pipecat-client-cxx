@@ -1,0 +1,87 @@
+From 5606d9826ad6e508c2580af2754288289a5754a8 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Aleix=20Conchillo=20Flaqu=C3=A9?= <aleix@daily.co>
+Date: Mon, 5 Oct 2026 17:52:44 -0700
+Subject: [PATCH] Send the DTLS close_notify alert when stopping the transport
+
+On a local close, the teardown stops the DTLS transport and destroys it
+right away, but stop() only queues doRecv() through a weak pointer, so the
+close_notify alert sent at the end of doRecv() never goes out. The Mbed TLS
+version never sent one. Peers that wait for it, like aiortc, only notice the
+connection closed once ICE consent fails, about 30 seconds later.
+
+Send it from stop() instead, once, while the transport is connected.
+---
+ src/impl/dtlstransport.cpp | 30 ++++++++++++++++++++++++++++++
+ src/impl/dtlstransport.hpp |  1 +
+ 2 files changed, 31 insertions(+)
+
+diff --git a/src/impl/dtlstransport.cpp b/src/impl/dtlstransport.cpp
+index 9bfa1bf..4f01b9b 100644
+--- a/src/impl/dtlstransport.cpp
++++ b/src/impl/dtlstransport.cpp
+@@ -129,7 +129,17 @@ void DtlsTransport::start() {
+ }
+ 
+ void DtlsTransport::stop() {
++	if (mStopped.exchange(true))
++		return;
++
+ 	PLOG_DEBUG << "Stopping DTLS transport";
++
++	// Send the close_notify alert now, as the transport might be destroyed before doRecv() runs
++	if (state() == State::Connected) {
++		std::lock_guard lock(mSendMutex);
++		gnutls_bye(mSession, GNUTLS_SHUT_WR);
++	}
++
+ 	unregisterIncoming();
+ 	mIncomingQueue.stop();
+ 	enqueueRecv();
+@@ -473,7 +483,17 @@ void DtlsTransport::start() {
+ }
+ 
+ void DtlsTransport::stop() {
++	if (mStopped.exchange(true))
++		return;
++
+ 	PLOG_DEBUG << "Stopping DTLS transport";
++
++	// Send the close_notify alert now, as the transport might be destroyed before doRecv() runs
++	if (state() == State::Connected) {
++		std::lock_guard lock(mSslMutex);
++		mbedtls_ssl_close_notify(&mSsl);
++	}
++
+ 	unregisterIncoming();
+ 	mIncomingQueue.stop();
+ 	enqueueRecv();
+@@ -884,7 +904,17 @@ void DtlsTransport::start() {
+ }
+ 
+ void DtlsTransport::stop() {
++	if (mStopped.exchange(true))
++		return;
++
+ 	PLOG_DEBUG << "Stopping DTLS transport";
++
++	// Send the close_notify alert now, as the transport might be destroyed before doRecv() runs
++	if (state() == State::Connected) {
++		std::lock_guard lock(mSslMutex);
++		SSL_shutdown(mSsl);
++	}
++
+ 	unregisterIncoming();
+ 	mIncomingQueue.stop();
+ 	enqueueRecv();
+diff --git a/src/impl/dtlstransport.hpp b/src/impl/dtlstransport.hpp
+index 10ef502..cfcb977 100644
+--- a/src/impl/dtlstransport.hpp
++++ b/src/impl/dtlstransport.hpp
+@@ -59,6 +59,7 @@ protected:
+ 
+ 	Queue<message_ptr> mIncomingQueue;
+ 	std::atomic<int> mPendingRecvCount = 0;
++	std::atomic<bool> mStopped = false;
+ 	std::mutex mRecvMutex;
+ 	std::atomic<unsigned int> mCurrentDscp = 0;
+ 	std::atomic<bool> mOutgoingResult = true;

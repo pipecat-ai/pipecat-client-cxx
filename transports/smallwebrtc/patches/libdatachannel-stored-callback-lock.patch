@@ -1,0 +1,47 @@
+From cd668cf53b9143478214b69633c5e700189f2fb0 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Aleix=20Conchillo=20Flaqu=C3=A9?= <aleix@daily.co>
+Date: Tue, 6 Oct 2026 15:02:48 -0700
+Subject: [PATCH] Assign stored callbacks under their lock
+
+synchronized_stored_callback had no assignment operator of its own, so
+assigning one, like Channel::resetCallbacks() does, went through the implicit
+one, which copies the stored call without the lock. Two threads resetting a
+channel's callbacks, e.g. the channel closing as the app destroys it, or a
+reset while a callback fires without a handler, raced on it.
+
+Assignment now goes through the base class's, under the lock. The stored call
+is still cleared on every assignment, after being replayed to a new handler,
+like before.
+---
+ include/rtc/utils.hpp | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/include/rtc/utils.hpp b/include/rtc/utils.hpp
+index be27733..998c2e0 100644
+--- a/include/rtc/utils.hpp
++++ b/include/rtc/utils.hpp
+@@ -105,17 +105,20 @@ template <typename... Args>
+ class synchronized_stored_callback final : public synchronized_callback<Args...> {
+ public:
+ 	template <typename... CArgs>
+-	synchronized_stored_callback(CArgs &&...cargs)
++	explicit synchronized_stored_callback(CArgs &&...cargs)
+ 	    : synchronized_callback<Args...>(std::forward<CArgs>(cargs)...) {}
+ 	~synchronized_stored_callback() {}
+ 
++	// Assign under the lock: the implicit assignment would copy the stored call without it
++	using synchronized_callback<Args...>::operator=;
++
+ private:
+ 	void set(std::function<void(Args...)> func) {
+ 		synchronized_callback<Args...>::set(func);
+-		if (func && stored) {
++		if (func && stored)
+ 			std::apply(func, std::move(*stored));
+-			stored.reset();
+-		}
++
++		stored.reset();
+ 	}
+ 
+ 	bool call(Args... args) const {

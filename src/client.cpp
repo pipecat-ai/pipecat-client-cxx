@@ -278,7 +278,8 @@ class PipecatClient::Impl : public TransportObserver {
     bool _destroying = false;
 
     // Guarded by _transport_mutex, which makes transport initialize(),
-    // connect() and disconnect() calls run one at a time.
+    // set_start_bot_params(), connect() and disconnect() calls run one at a
+    // time.
     std::mutex _transport_mutex;
     bool _initialized = false;
 
@@ -387,6 +388,10 @@ json PipecatClient::Impl::start_bot(const APIRequest& request) {
 
     json response;
     try {
+        {
+            std::lock_guard<std::mutex> transport_lock(_transport_mutex);
+            _transport->set_start_bot_params(request);
+        }
         HttpResponse http_response =
                 http_post(request, [&] { return is_cancelled(session); });
         if (http_response.status < 200 || http_response.status >= 300) {

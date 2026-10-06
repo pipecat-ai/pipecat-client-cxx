@@ -19,6 +19,8 @@ It supports Linux (`x86_64` and `aarch64`), macOS (`aarch64`) and Windows
 are the available transports (see [Building transports](#-building-transports)):
 
 - [Daily](transports/daily): connects to the bot's Daily room, using WebRTC.
+- [SmallWebRTC](transports/smallwebrtc): connects to the bot over WebRTC,
+  peer to peer.
 - [WebSocket](transports/websocket): connects to the bot's WebSocket.
 
 You can also [write your own](#-writing-a-transport).
@@ -95,7 +97,7 @@ auto weather = client.send_client_request("get-weather", {{"city", "SF"}}).get()
 - [text](examples/text): chat with a bot in the terminal.
 - [voice](examples/voice): talk with a bot using your microphone and speakers.
 
-They use the Daily or the WebSocket transport. See
+They use the Daily, SmallWebRTC or WebSocket transport. See
 [examples/README.md](examples/README.md) to build them and run them with a bot
 on your machine or on Pipecat Cloud.
 
@@ -189,12 +191,14 @@ with the client:
 cmake . -G Ninja -Bbuild -DCMAKE_BUILD_TYPE=Release \
   -DPIPECAT_BUILD_DAILY=ON \
   -DDailyCore_ROOT=/path/to/daily-core-sdk \
+  -DPIPECAT_BUILD_SMALLWEBRTC=ON \
   -DPIPECAT_BUILD_WEBSOCKET=ON
 ```
 
 | Transport | Option | Component | Needs |
 | --- | --- | --- | --- |
 | [Daily](transports/daily) | `PIPECAT_BUILD_DAILY` | `daily` | The [Daily Core C++ SDK](https://github.com/daily-co/daily-core-sdk) 0.23.0 or newer, with `DailyCore_ROOT` pointing to it |
+| [SmallWebRTC](transports/smallwebrtc) | `PIPECAT_BUILD_SMALLWEBRTC` | `smallwebrtc` | [libdatachannel](https://github.com/paullouisageneau/libdatachannel) 0.24 or newer with media support, [libopus](https://opus-codec.org) and [speexdsp](https://github.com/xiph/speexdsp), which CMake downloads if they're not installed. A downloaded libdatachannel needs OpenSSL |
 | [WebSocket](transports/websocket) | `PIPECAT_BUILD_WEBSOCKET` | `websocket` | [libdatachannel](https://github.com/paullouisageneau/libdatachannel) 0.24 or newer and [speexdsp](https://github.com/xiph/speexdsp), which CMake downloads if they're not installed. A downloaded libdatachannel needs OpenSSL |
 
 Then use them as components of the package, which also finds their
@@ -224,6 +228,9 @@ Implement `pipecat::Transport` (see `include/pipecat/transport.h`):
   calls them from inside an observer call.
 - `send_ready_message()` receives the `client-ready` message. Send it once the
   bot can receive it, which may be after `connect()` returns.
+- `set_start_bot_params()` receives the request `start_bot()` sends. Override
+  it if the transport connects through the server that started the bot, e.g.
+  when the server only answers with a session ID.
 
 ## 🧪 Testing
 

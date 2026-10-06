@@ -57,13 +57,13 @@ jobs:
           $SUDO apt-get update
           $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             ca-certificates cmake g++ git make meson ninja-build pkg-config \
-            libcurl4-openssl-dev libspeexdsp-dev libssl-dev nlohmann-json3-dev \
-            portaudio19-dev unzip ${{ matrix.packages }}
+            libcurl4-openssl-dev libopus-dev libspeexdsp-dev libssl-dev \
+            nlohmann-json3-dev portaudio19-dev unzip ${{ matrix.packages }}
 
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
         run: |
-          brew install meson nlohmann-json ninja openssl@3 pkgconf portaudio speexdsp
+          brew install meson nlohmann-json ninja openssl@3 opus pkgconf portaudio speexdsp
           echo "OPENSSL_ROOT_DIR=$(brew --prefix openssl@3)" >> "$GITHUB_ENV"
 
       - uses: actions/checkout@v7
@@ -85,6 +85,7 @@ jobs:
           -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
           -DPIPECAT_WARNINGS_AS_ERRORS=ON
           -DPIPECAT_BUILD_DAILY=${{ matrix.transports && 'ON' || 'OFF' }}
+          -DPIPECAT_BUILD_SMALLWEBRTC=${{ matrix.transports && 'ON' || 'OFF' }}
           -DPIPECAT_BUILD_WEBSOCKET=${{ matrix.transports && 'ON' || 'OFF' }}
 
       - name: Build
@@ -123,6 +124,16 @@ jobs:
           cmake --build build-package-daily
           ./build-package-daily/package_test
 
+      - name: Build against installed package (CMake, SmallWebRTC)
+        if: matrix.transports
+        run: |
+          cmake -S transports/smallwebrtc/tests/package -B build-package-smallwebrtc -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
+            -DCMAKE_PREFIX_PATH="$PWD/install"
+          cmake --build build-package-smallwebrtc
+          ./build-package-smallwebrtc/package_test
+
       - name: Build against installed package (CMake, WebSocket)
         if: matrix.transports
         run: |
@@ -148,7 +159,8 @@ jobs:
     name: Linux x86_64 (Clang, ThreadSanitizer)
     runs-on: ubuntu-24.04
     steps:
-      # Without speexdsp, so the build downloads it, which the other jobs don't.
+      # Without speexdsp and libopus, so the build downloads them, which the
+      # other jobs don't.
       - name: Install dependencies
         run: |
           sudo apt-get update
@@ -174,6 +186,7 @@ jobs:
           "-DCMAKE_CXX_FLAGS=-fsanitize=thread -fno-omit-frame-pointer"
           -DCMAKE_EXE_LINKER_FLAGS=-fsanitize=thread
           -DPIPECAT_WARNINGS_AS_ERRORS=ON
+          -DPIPECAT_BUILD_SMALLWEBRTC=ON
           -DPIPECAT_BUILD_WEBSOCKET=ON
 
       - name: Build
@@ -184,6 +197,11 @@ jobs:
         env:
           TSAN_OPTIONS: halt_on_error=1
         run: ./build/tests/pipecat_tests --gtest_repeat=5 --gtest_brief=1
+
+      - name: Test (SmallWebRTC)
+        env:
+          TSAN_OPTIONS: halt_on_error=1
+        run: ./build/transports/smallwebrtc/tests/pipecat_smallwebrtc_tests --gtest_repeat=5 --gtest_brief=1
 
       - name: Test (WebSocket)
         env:
@@ -226,7 +244,8 @@ jobs:
         run: |
           $env:VCPKG_ROOT = $env:VCPKG_INSTALLATION_ROOT
           cmake --preset vcpkg -DPIPECAT_WARNINGS_AS_ERRORS=ON -DPIPECAT_BUILD_DAILY=ON `
-            -DPIPECAT_BUILD_WEBSOCKET=ON -DVCPKG_MANIFEST_FEATURES=websocket
+            -DPIPECAT_BUILD_SMALLWEBRTC=ON -DPIPECAT_BUILD_WEBSOCKET=ON `
+            "-DVCPKG_MANIFEST_FEATURES=smallwebrtc;websocket"
 
       - name: Build
         run: cmake --build build --config Release

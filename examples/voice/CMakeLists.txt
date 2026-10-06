@@ -10,10 +10,14 @@ project(pipecat_voice_chat LANGUAGES CXX)
 
 # The example can use the transports the Pipecat client was installed with,
 # if their dependencies are found.
-find_package(pipecat 1.0 REQUIRED OPTIONAL_COMPONENTS daily websocket)
-if(NOT pipecat_daily_FOUND AND NOT pipecat_websocket_FOUND)
+find_package(pipecat 1.0 REQUIRED
+  OPTIONAL_COMPONENTS daily smallwebrtc websocket
+)
+if(NOT pipecat_daily_FOUND AND NOT pipecat_smallwebrtc_FOUND
+    AND NOT pipecat_websocket_FOUND)
   message(FATAL_ERROR "No transport found:\n"
     "  ${pipecat_daily_NOT_FOUND_MESSAGE}\n"
+    "  ${pipecat_smallwebrtc_NOT_FOUND_MESSAGE}\n"
     "  ${pipecat_websocket_NOT_FOUND_MESSAGE}"
   )
 endif()
@@ -46,6 +50,11 @@ if(pipecat_daily_FOUND)
         $<TARGET_FILE:DailyCore::DailyCore> $<TARGET_FILE_DIR:voice_chat>
     )
   endif()
+endif()
+
+if(pipecat_smallwebrtc_FOUND)
+  target_link_libraries(voice_chat PRIVATE pipecat::smallwebrtc)
+  target_compile_definitions(voice_chat PRIVATE PIPECAT_EXAMPLE_SMALLWEBRTC)
 endif()
 
 if(pipecat_websocket_FOUND)
