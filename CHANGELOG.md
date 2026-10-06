@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `pipecat::SmallWebRTCTransport`, a new transport, in
+  `<pipecat/smallwebrtc/transport.h>`, built with
+  `-DPIPECAT_BUILD_SMALLWEBRTC=ON`. It connects to bots that use Pipecat's
+  SmallWebRTC transport, like the development runner's
+  `python bot.py -t webrtc`, over WebRTC, peer to peer:
+  - After `start_bot()`, it sends the WebRTC offer to the server that started
+    the bot, like client-js. Apps can also give the offer endpoint in
+    `webrtcRequestParams`, and STUN and TURN servers in `iceConfig`.
+  - `SmallWebRTCTransportOptions` sets the audio sample rate and channels, at
+    any sample rate. The audio is sent with Opus, in mono.
+  - The bot's audio plays at the pace the bot sent it, 80 ms behind, so the
+    network's ups and downs don't reach the app: audio that arrives late or
+    out of order still plays in its turn, and lost audio is concealed.
+  - The `smallwebrtc` component of the CMake package
+    (`find_package(pipecat COMPONENTS smallwebrtc)` and
+    `pipecat::smallwebrtc`), which also finds libdatachannel, libopus and
+    speexdsp. They're downloaded if they're not installed, and a downloaded
+    libdatachannel is patched so the bot notices right away when the client
+    disconnects.
+  - The examples can use it, with `--transport smallwebrtc`.
+
 - `Transport::set_start_bot_params()` receives the request
   `PipecatClient::start_bot()` sends, so transports that connect through the
   server that started the bot can find where to connect. It does nothing by

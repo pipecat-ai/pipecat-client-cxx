@@ -255,9 +255,10 @@ if(PIPECAT_BUILD_DOCS)
     ${CMAKE_CURRENT_BINARY_DIR}/include/pipecat/version.h
     ${PROJECT_SOURCE_DIR}/transports/daily/docs/daily.md
     ${PROJECT_SOURCE_DIR}/transports/daily/include/pipecat/daily
+    ${PROJECT_SOURCE_DIR}/transports/smallwebrtc/docs/smallwebrtc.md
+    ${PROJECT_SOURCE_DIR}/transports/smallwebrtc/include/pipecat/smallwebrtc
     ${PROJECT_SOURCE_DIR}/transports/websocket/docs/websocket.md
     ${PROJECT_SOURCE_DIR}/transports/websocket/include/pipecat/websocket
-    ${PROJECT_SOURCE_DIR}/transports/smallwebrtc/include/pipecat/smallwebrtc
     COMMENT "Generating the API reference"
   )
 endif()

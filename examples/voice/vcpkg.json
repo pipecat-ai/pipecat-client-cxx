@@ -5,6 +5,20 @@
     "portaudio"
   ],
   "features": {
+    "smallwebrtc": {
+      "description": "Dependencies of the SmallWebRTC transport",
+      "dependencies": [
+        {
+          "name": "libdatachannel",
+          "default-features": false,
+          "features": [
+            "srtp"
+          ]
+        },
+        "opus",
+        "speexdsp"
+      ]
+    },
     "websocket": {
       "description": "Dependencies of the WebSocket transport",
       "dependencies": [
