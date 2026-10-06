@@ -146,7 +146,7 @@ Then, in your CMake project, point `CMAKE_PREFIX_PATH` to that directory and
 use:
 
 ```cmake
-find_package(pipecat 1.0 REQUIRED COMPONENTS smallwebrtc)
+find_package(pipecat 1.1 REQUIRED COMPONENTS smallwebrtc)
 target_link_libraries(my_app PRIVATE pipecat::smallwebrtc)
 ```
 

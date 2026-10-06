@@ -12,7 +12,7 @@ cmake_minimum_required(VERSION 3.16)
 
 project(pipecat_smallwebrtc_package_test LANGUAGES CXX)
 
-find_package(pipecat 1.0 REQUIRED COMPONENTS smallwebrtc)
+find_package(pipecat 1.1 REQUIRED COMPONENTS smallwebrtc)
 
 add_executable(package_test main.cpp)
 target_link_libraries(package_test PRIVATE pipecat::smallwebrtc)
