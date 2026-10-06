@@ -26,11 +26,18 @@ find_package(LibDataChannel ${PIPECAT_SMALLWEBRTC_MIN_LIBDATACHANNEL_VERSION}
 if(NOT LibDataChannel_FOUND)
   message(STATUS "libdatachannel not found, downloading it")
   include(FetchContent)
+  find_package(Git REQUIRED)
   FetchContent_Declare(libdatachannel
     GIT_REPOSITORY https://github.com/paullouisageneau/libdatachannel.git
     GIT_TAG v0.24.6
     GIT_SHALLOW TRUE
     GIT_SUBMODULES deps/libjuice deps/libsrtp deps/plog deps/usrsctp
+    # So closing tells the bot right away, instead of it noticing about 30
+    # seconds later.
+    PATCH_COMMAND ${GIT_EXECUTABLE} apply --ignore-whitespace
+      ${CMAKE_CURRENT_SOURCE_DIR}/patches/libdatachannel-dtls-close-notify.patch
+    # The tag never changes, and updating would patch it again.
+    UPDATE_DISCONNECTED TRUE
   )
   set(BUILD_SHARED_LIBS OFF)
   set(NO_EXAMPLES ON)
