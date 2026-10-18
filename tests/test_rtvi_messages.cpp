@@ -226,6 +226,38 @@ TEST(ServerData, BotReady) {
     EXPECT_EQ(data.about["library"], "pipecat");
 }
 
+TEST(ServerData, BotReadyCapabilities) {
+    auto capabilities = json::parse(R"({
+        "version": "2.2.0",
+        "capabilities": {
+            "audio_in": true,
+            "audio_out": true,
+            "video_in": false,
+            "video_out": false,
+            "metrics": true
+        }
+    })")
+                                .get<BotReadyData>()
+                                .capabilities;
+    EXPECT_EQ(capabilities.audio_in, true);
+    EXPECT_EQ(capabilities.audio_out, true);
+    EXPECT_EQ(capabilities.video_in, false);
+    EXPECT_EQ(capabilities.video_out, false);
+    EXPECT_EQ(capabilities.screen_in, std::nullopt);
+    EXPECT_EQ(capabilities.metrics, true);
+
+    // Bots older than RTVI 2.2 don't send capabilities.
+    capabilities = json::parse(R"({"version": "2.1.0"})")
+                           .get<BotReadyData>()
+                           .capabilities;
+    EXPECT_EQ(capabilities.audio_in, std::nullopt);
+    EXPECT_EQ(capabilities.audio_out, std::nullopt);
+    EXPECT_EQ(capabilities.video_in, std::nullopt);
+    EXPECT_EQ(capabilities.video_out, std::nullopt);
+    EXPECT_EQ(capabilities.screen_in, std::nullopt);
+    EXPECT_EQ(capabilities.metrics, std::nullopt);
+}
+
 TEST(ServerData, Error) {
     auto data =
             json::parse(R"({"error": "Boom", "fatal": true})").get<ErrorData>();

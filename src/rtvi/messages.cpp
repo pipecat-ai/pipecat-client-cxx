@@ -267,9 +267,19 @@ void from_json(const json& j, ClientMessageData& data) {
 // Server to client data
 //
 
+void from_json(const json& j, BotCapabilities& data) {
+    data.audio_in = optional_value<bool>(j, "audio_in");
+    data.audio_out = optional_value<bool>(j, "audio_out");
+    data.video_in = optional_value<bool>(j, "video_in");
+    data.video_out = optional_value<bool>(j, "video_out");
+    data.screen_in = optional_value<bool>(j, "screen_in");
+    data.metrics = optional_value<bool>(j, "metrics");
+}
+
 void from_json(const json& j, BotReadyData& data) {
     data.version = value_or<std::string>(j, "version", "");
     data.about = json_value(j, "about");
+    data.capabilities = value_or<BotCapabilities>(j, "capabilities", {});
 }
 
 void from_json(const json& j, ErrorData& data) {

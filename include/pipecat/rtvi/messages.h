@@ -124,12 +124,34 @@ struct LLMFunctionCallResultData {
     nlohmann::json result;
 };
 
+/// What the bot does in a session, so apps can leave out what doesn't apply.
+///
+/// A field is std::nullopt if the bot can't tell, so keep your default for
+/// it. False means the bot doesn't do it.
+struct BotCapabilities {
+    /// Whether the bot receives the user's audio.
+    std::optional<bool> audio_in;
+    /// Whether the bot sends audio to the user.
+    std::optional<bool> audio_out;
+    /// Whether the bot receives the user's video.
+    std::optional<bool> video_in;
+    /// Whether the bot sends video to the user.
+    std::optional<bool> video_out;
+    /// Whether the bot receives the user's screen share.
+    std::optional<bool> screen_in;
+    /// Whether the bot sends metrics.
+    std::optional<bool> metrics;
+};
+
 /// Sent by the bot when it's ready.
 struct BotReadyData {
     /// RTVI version of the bot.
     std::string version;
     /// Information about the bot. Can be null.
     nlohmann::json about;
+    /// What the bot does in this session. Bots older than RTVI 2.2 don't say,
+    /// so every field is std::nullopt.
+    BotCapabilities capabilities;
 };
 
 /// An error.
@@ -332,6 +354,7 @@ void to_json(nlohmann::json& j, const LLMFunctionCallResultData& data);
 void to_json(nlohmann::json& j, const ClientMessageData& data);
 void from_json(const nlohmann::json& j, ClientMessageData& data);
 
+void from_json(const nlohmann::json& j, BotCapabilities& data);
 void from_json(const nlohmann::json& j, BotReadyData& data);
 void from_json(const nlohmann::json& j, ErrorData& data);
 void from_json(const nlohmann::json& j, TranscriptData& data);

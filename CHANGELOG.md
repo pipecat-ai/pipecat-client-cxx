@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `rtvi::BotReadyData::capabilities` says what the bot does in the session:
+  whether it receives the user's audio, video or screen share, sends audio or
+  video, and sends metrics. Bots on RTVI 2.2 (Pipecat 1.13) or newer send it.
+
 ### Changed
 
 - The Daily transport needs the Daily Core SDK 0.25.0 or newer, the first
