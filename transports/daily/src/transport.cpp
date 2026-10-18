@@ -12,9 +12,7 @@
 
 #include <pipecat/errors.h>
 
-extern "C" {
 #include "daily_core.h"
-}
 
 #include <atomic>
 #include <chrono>

@@ -108,26 +108,28 @@ const char* to_string(MessageType type) {
         return "user-mute-started";
     case MessageType::UserMuteStopped:
         return "user-mute-stopped";
-    case MessageType::UserTranscription:
-        return "user-transcription";
+    case MessageType::UserInput:
+        return "user-input";
     case MessageType::UserLLMText:
         return "user-llm-text";
     case MessageType::BotOutput:
         return "bot-output";
-    case MessageType::BotLLMText:
-        return "bot-llm-text";
     case MessageType::BotLLMStarted:
         return "bot-llm-started";
     case MessageType::BotLLMStopped:
         return "bot-llm-stopped";
     case MessageType::BotLLMSearchResponse:
         return "bot-llm-search-response";
-    case MessageType::BotTTSText:
-        return "bot-tts-text";
     case MessageType::BotTTSStarted:
         return "bot-tts-started";
     case MessageType::BotTTSStopped:
         return "bot-tts-stopped";
+    case MessageType::STTRawText:
+        return "stt-raw-text";
+    case MessageType::LLMRawText:
+        return "llm-raw-text";
+    case MessageType::TTSRawText:
+        return "tts-raw-text";
     case MessageType::LLMFunctionCallStarted:
         return "llm-function-call-started";
     case MessageType::LLMFunctionCallInProgress:
@@ -267,9 +269,19 @@ void from_json(const json& j, ClientMessageData& data) {
 // Server to client data
 //
 
+void from_json(const json& j, BotCapabilities& data) {
+    data.audio_in = optional_value<bool>(j, "audio_in");
+    data.audio_out = optional_value<bool>(j, "audio_out");
+    data.video_in = optional_value<bool>(j, "video_in");
+    data.video_out = optional_value<bool>(j, "video_out");
+    data.screen_in = optional_value<bool>(j, "screen_in");
+    data.metrics = optional_value<bool>(j, "metrics");
+}
+
 void from_json(const json& j, BotReadyData& data) {
     data.version = value_or<std::string>(j, "version", "");
     data.about = json_value(j, "about");
+    data.capabilities = value_or<BotCapabilities>(j, "capabilities", {});
 }
 
 void from_json(const json& j, ErrorData& data) {
@@ -277,7 +289,16 @@ void from_json(const json& j, ErrorData& data) {
     data.fatal = value_or(j, "fatal", false);
 }
 
-void from_json(const json& j, TranscriptData& data) {
+void from_json(const json& j, UserInputData& data) {
+    data.text = value_or<std::string>(j, "text", "");
+    data.input_type = value_or<std::string>(j, "input_type", "");
+    data.final = value_or(j, "final", false);
+    data.timestamp = value_or<std::string>(j, "timestamp", "");
+    data.user_id = optional_value<std::string>(j, "user_id");
+    data.msg_id = optional_value<std::string>(j, "msg_id");
+}
+
+void from_json(const json& j, STTRawTextData& data) {
     data.text = value_or<std::string>(j, "text", "");
     data.final = value_or(j, "final", false);
     data.timestamp = value_or<std::string>(j, "timestamp", "");
@@ -295,7 +316,10 @@ void from_json(const json& j, SpokenProgressData& data) {
 
 void from_json(const json& j, BotOutputData& data) {
     data.text = value_or<std::string>(j, "text", "");
-    data.aggregated_by = value_or<std::string>(j, "aggregated_by", "");
+    // Bots older than RTVI 2.2 only send aggregated_by.
+    data.text_type = value_or<std::string>(
+            j, "text_type", value_or<std::string>(j, "aggregated_by", "")
+    );
     data.segment_id = optional_value<int64_t>(j, "segment_id");
     data.will_be_spoken = optional_value<bool>(j, "will_be_spoken");
     data.spoken_status = optional_value<std::string>(j, "spoken_status");

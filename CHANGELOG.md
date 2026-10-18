@@ -5,6 +5,55 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `rtvi::BotReadyData::capabilities` says what the bot does in the session:
+  whether it receives the user's audio, video or screen share, sends audio or
+  video, and sends metrics. Bots on RTVI 2.2 (Pipecat 1.13) or newer send it.
+
+- `PipecatClientCallbacks::on_user_input()` reports what the user said or
+  typed, in `rtvi::UserInputData`: a transcription, text sent with
+  `send_text()`, or a backchannel, a short acknowledgment like "mhm" the user
+  said while the bot talked. Bots older than RTVI 2.2 only report
+  transcriptions.
+
+- `PipecatClient::send_text()` returns the ID of the message, which bots on
+  RTVI 2.2 or newer send back as the `msg_id` of `on_user_input()`.
+
+- `PipecatClientCallbacks::on_stt_raw_text()`, `on_llm_raw_text()` and
+  `on_tts_raw_text()` report what the bot's speech-to-text, LLM and
+  text-to-speech make, as they make it, e.g. for debugging. Bots on RTVI 2.2
+  or newer send it if they're set up to.
+
+### Changed
+
+- The client speaks RTVI 2.2, so bots on Pipecat 1.13 or newer also send it
+  the bot's backchannels, short acknowledgments like "Mm-hmm." the bot says
+  while the user talks, to `on_bot_output()` with `text_type`
+  `"backchannel"`, and the raw text messages if they're set up to.
+
+- The Daily transport needs the Daily Core SDK 0.25.0 or newer, the first
+  whose header can be included from C++ as is.
+
+- `rtvi::BotOutputData::aggregated_by` is now `text_type`, as Pipecat 1.13
+  calls it. It's filled from `aggregated_by` for older bots.
+
+- The text example prints the bot's answers from `on_bot_output()`, a sentence
+  at a time, so it needs a bot on Pipecat 1.13 or newer.
+
+### Removed
+
+- `PipecatClientCallbacks::on_user_transcript()` and `rtvi::TranscriptData`.
+  Pipecat 1.13 deprecates the `user-transcription` message: use
+  `on_user_input()`, which also reports the transcriptions of older bots.
+
+- `PipecatClientCallbacks::on_bot_llm_text()` and `on_bot_tts_text()`, with
+  `rtvi::BotLLMTextData` and `rtvi::BotTTSTextData`. Pipecat 1.13 deprecates
+  the `bot-llm-text` and `bot-tts-text` messages: use `on_bot_output()` to show
+  what the bot says, or the raw text callbacks.
+
 ## [1.1.0] - 2026-10-06
 
 ### Added

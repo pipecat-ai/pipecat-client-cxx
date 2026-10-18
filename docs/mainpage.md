@@ -1,7 +1,7 @@
 # Overview
 
 The Pipecat C++ Client SDK connects native apps, like robots, kiosks, devices
-or games, to [Pipecat](https://pipecat.ai) bots. It speaks RTVI 2.1, the
+or games, to [Pipecat](https://pipecat.ai) bots. It speaks RTVI 2.2, the
 protocol Pipecat clients and bots use to talk to each other.
 
 This is the API reference. To install the SDK and get started, see the
@@ -193,11 +193,11 @@ auto weather = client.send_client_request("get-weather", {{"city", "SF"}}).get()
 ```
 
 Receive what the user and the bot say with callbacks, like
-[on_user_transcript()](@ref pipecat::PipecatClientCallbacks::on_user_transcript)
+[on_user_input()](@ref pipecat::PipecatClientCallbacks::on_user_input)
 and [on_bot_output()](@ref pipecat::PipecatClientCallbacks::on_bot_output):
 
 ```cpp
-void on_user_transcript(const pipecat::rtvi::TranscriptData& data) override {
+void on_user_input(const pipecat::rtvi::UserInputData& data) override {
     if (data.final) {
         std::cout << "User: " << data.text << std::endl;
     }

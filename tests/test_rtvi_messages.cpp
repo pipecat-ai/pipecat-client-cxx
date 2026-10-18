@@ -40,16 +40,17 @@ TEST(MessageType, RoundTripsAllTypes) {
             {MessageType::BotInterrupted, "bot-interrupted"},
             {MessageType::UserMuteStarted, "user-mute-started"},
             {MessageType::UserMuteStopped, "user-mute-stopped"},
-            {MessageType::UserTranscription, "user-transcription"},
+            {MessageType::UserInput, "user-input"},
             {MessageType::UserLLMText, "user-llm-text"},
             {MessageType::BotOutput, "bot-output"},
-            {MessageType::BotLLMText, "bot-llm-text"},
             {MessageType::BotLLMStarted, "bot-llm-started"},
             {MessageType::BotLLMStopped, "bot-llm-stopped"},
             {MessageType::BotLLMSearchResponse, "bot-llm-search-response"},
-            {MessageType::BotTTSText, "bot-tts-text"},
             {MessageType::BotTTSStarted, "bot-tts-started"},
             {MessageType::BotTTSStopped, "bot-tts-stopped"},
+            {MessageType::STTRawText, "stt-raw-text"},
+            {MessageType::LLMRawText, "llm-raw-text"},
+            {MessageType::TTSRawText, "tts-raw-text"},
             {MessageType::LLMFunctionCallStarted, "llm-function-call-started"},
             {MessageType::LLMFunctionCallInProgress,
              "llm-function-call-in-progress"},
@@ -124,7 +125,7 @@ TEST(Message, ClientReady) {
     EXPECT_EQ(message.type, "client-ready");
     EXPECT_EQ(
             message.data,
-            json::parse(R"({"version": "2.1.0", "about": {"library": "test"}})")
+            json::parse(R"({"version": "2.2.0", "about": {"library": "test"}})")
     );
 
     about.library_version = "1.0.0";
@@ -226,6 +227,38 @@ TEST(ServerData, BotReady) {
     EXPECT_EQ(data.about["library"], "pipecat");
 }
 
+TEST(ServerData, BotReadyCapabilities) {
+    auto capabilities = json::parse(R"({
+        "version": "2.2.0",
+        "capabilities": {
+            "audio_in": true,
+            "audio_out": true,
+            "video_in": false,
+            "video_out": false,
+            "metrics": true
+        }
+    })")
+                                .get<BotReadyData>()
+                                .capabilities;
+    EXPECT_EQ(capabilities.audio_in, true);
+    EXPECT_EQ(capabilities.audio_out, true);
+    EXPECT_EQ(capabilities.video_in, false);
+    EXPECT_EQ(capabilities.video_out, false);
+    EXPECT_EQ(capabilities.screen_in, std::nullopt);
+    EXPECT_EQ(capabilities.metrics, true);
+
+    // Bots older than RTVI 2.2 don't send capabilities.
+    capabilities = json::parse(R"({"version": "2.1.0"})")
+                           .get<BotReadyData>()
+                           .capabilities;
+    EXPECT_EQ(capabilities.audio_in, std::nullopt);
+    EXPECT_EQ(capabilities.audio_out, std::nullopt);
+    EXPECT_EQ(capabilities.video_in, std::nullopt);
+    EXPECT_EQ(capabilities.video_out, std::nullopt);
+    EXPECT_EQ(capabilities.screen_in, std::nullopt);
+    EXPECT_EQ(capabilities.metrics, std::nullopt);
+}
+
 TEST(ServerData, Error) {
     auto data =
             json::parse(R"({"error": "Boom", "fatal": true})").get<ErrorData>();
@@ -238,29 +271,55 @@ TEST(ServerData, Error) {
     EXPECT_FALSE(data.fatal);
 }
 
-TEST(ServerData, Transcript) {
+TEST(ServerData, UserInput) {
     auto data = json::parse(R"({
-        "text": "Hello", "final": true, "timestamp": "2026-09-28T10:00:00",
+        "text": "Hello", "input_type": "transcription", "final": true,
+        "timestamp": "2026-09-28T10:00:00", "user_id": "user"
+    })")
+                        .get<UserInputData>();
+    EXPECT_EQ(data.text, "Hello");
+    EXPECT_EQ(data.input_type, "transcription");
+    EXPECT_TRUE(data.final);
+    EXPECT_EQ(data.timestamp, "2026-09-28T10:00:00");
+    EXPECT_EQ(data.user_id, "user");
+    EXPECT_EQ(data.msg_id, std::nullopt);
+
+    // Text sent with send_text(), from a transport that doesn't know who sent
+    // it.
+    data = json::parse(R"({
+        "text": "Hi", "input_type": "chat", "final": true,
+        "timestamp": "2026-09-28T10:00:01", "msg_id": "abc"
+    })")
+                   .get<UserInputData>();
+    EXPECT_EQ(data.input_type, "chat");
+    EXPECT_EQ(data.user_id, std::nullopt);
+    EXPECT_EQ(data.msg_id, "abc");
+}
+
+TEST(ServerData, STTRawText) {
+    auto data = json::parse(R"({
+        "text": "Hel", "final": false, "timestamp": "2026-09-28T10:00:00",
         "user_id": "user"
     })")
-                        .get<TranscriptData>();
-    EXPECT_EQ(data.text, "Hello");
-    EXPECT_TRUE(data.final);
+                        .get<STTRawTextData>();
+    EXPECT_EQ(data.text, "Hel");
+    EXPECT_FALSE(data.final);
     EXPECT_EQ(data.timestamp, "2026-09-28T10:00:00");
     EXPECT_EQ(data.user_id, "user");
 }
 
 TEST(ServerData, Text) {
     EXPECT_EQ(
-            json::parse(R"({"text": "Hi"})").get<BotLLMTextData>().text, "Hi"
+            json::parse(R"({"text": "Hi"})").get<LLMRawTextData>().text, "Hi"
     );
-    EXPECT_EQ(json::parse("{}").get<BotTTSTextData>().text, "");
+    EXPECT_EQ(json::parse("{}").get<TTSRawTextData>().text, "");
     EXPECT_EQ(json(nullptr).get<TextData>().text, "");
 }
 
 TEST(ServerData, BotOutput) {
     auto data = json::parse(R"({
         "text": "Hello there.",
+        "text_type": "sentence",
         "aggregated_by": "sentence",
         "segment_id": 3,
         "will_be_spoken": true,
@@ -272,7 +331,7 @@ TEST(ServerData, BotOutput) {
     })")
                         .get<BotOutputData>();
     EXPECT_EQ(data.text, "Hello there.");
-    EXPECT_EQ(data.aggregated_by, "sentence");
+    EXPECT_EQ(data.text_type, "sentence");
     EXPECT_EQ(data.segment_id, 3);
     EXPECT_EQ(data.will_be_spoken, true);
     EXPECT_EQ(data.spoken_status, "in-progress");
@@ -283,14 +342,22 @@ TEST(ServerData, BotOutput) {
 
 TEST(ServerData, BotOutputMinimal) {
     auto data = json::parse(R"({
-        "text": "Hi", "aggregated_by": "word", "segment_id": null
+        "text": "Hi", "text_type": "word", "segment_id": null
     })")
                         .get<BotOutputData>();
     EXPECT_EQ(data.text, "Hi");
+    EXPECT_EQ(data.text_type, "word");
     EXPECT_EQ(data.segment_id, std::nullopt);
     EXPECT_EQ(data.will_be_spoken, std::nullopt);
     EXPECT_EQ(data.spoken_status, std::nullopt);
     EXPECT_FALSE(data.spoken_progress.has_value());
+}
+
+TEST(ServerData, BotOutputFromOlderBots) {
+    // Bots older than RTVI 2.2 only send aggregated_by.
+    auto data = json::parse(R"({"text": "Hi", "aggregated_by": "sentence"})")
+                        .get<BotOutputData>();
+    EXPECT_EQ(data.text_type, "sentence");
 }
 
 TEST(ServerData, Metrics) {

@@ -39,7 +39,6 @@
 #include <ctime>
 #include <iostream>
 #include <mutex>
-#include <set>
 #include <string>
 #include <thread>
 #include <vector>
@@ -71,20 +70,18 @@ class App : public pipecat::PipecatClientCallbacks {
         print("The bot is ready. Start talking (Ctrl+C quits).");
     }
 
-    void on_user_transcript(const pipecat::rtvi::TranscriptData& data
-    ) override {
+    void on_user_input(const pipecat::rtvi::UserInputData& data) override {
         if (data.final) {
             print("You: " + data.text);
         }
     }
 
     void on_bot_output(const pipecat::rtvi::BotOutputData& data) override {
-        // Text the bot speaks is sent again as it speaks it, so only print
-        // the first update of each segment.
-        if (data.segment_id && !_printed.insert(*data.segment_id).second) {
-            return;
+        // Text the bot speaks comes again as it speaks it, so only print a
+        // sentence when it's new.
+        if (data.spoken_status == "new") {
+            print("Bot: " + data.text);
         }
-        print("Bot: " + data.text);
     }
 
     // Answers the bot's `get_current_time` function calls.
@@ -105,9 +102,6 @@ class App : public pipecat::PipecatClientCallbacks {
         print("Disconnected.");
         running = false;
     }
-
-   private:
-    std::set<int64_t> _printed;
 };
 
 // Creates the transport called `name`, if the example was built with it, and

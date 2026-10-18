@@ -141,24 +141,29 @@ class Recorder : public pipecat::PipecatClientCallbacks {
 
     // Transcription and output
 
-    void on_user_transcript(
-            const pipecat::rtvi::TranscriptData& data
-    ) override {
-        record("user-transcript:" + data.text + (data.final ? ":final" : ""));
+    void on_user_input(const pipecat::rtvi::UserInputData& data) override {
+        record("user-input:" + data.input_type + ":" + data.text +
+               (data.final ? ":final" : ""));
     }
     void on_user_llm_text(const pipecat::rtvi::UserLLMTextData& data) override {
         record("user-llm-text:" + data.text);
     }
     void on_bot_output(const pipecat::rtvi::BotOutputData& data) override {
-        record("bot-output:" + data.text + ":" + data.aggregated_by);
+        record("bot-output:" + data.text + ":" + data.text_type);
+    }
+
+    // Speech-to-text
+
+    void on_stt_raw_text(const pipecat::rtvi::STTRawTextData& data) override {
+        record("stt-raw-text:" + data.text + (data.final ? ":final" : ""));
     }
 
     // LLM
 
     void on_bot_llm_started() override { record("bot-llm-started"); }
     void on_bot_llm_stopped() override { record("bot-llm-stopped"); }
-    void on_bot_llm_text(const pipecat::rtvi::BotLLMTextData& data) override {
-        record("bot-llm-text:" + data.text);
+    void on_llm_raw_text(const pipecat::rtvi::LLMRawTextData& data) override {
+        record("llm-raw-text:" + data.text);
     }
     void on_bot_llm_search_response(
             const pipecat::rtvi::BotLLMSearchResponseData& data
@@ -193,8 +198,8 @@ class Recorder : public pipecat::PipecatClientCallbacks {
 
     void on_bot_tts_started() override { record("bot-tts-started"); }
     void on_bot_tts_stopped() override { record("bot-tts-stopped"); }
-    void on_bot_tts_text(const pipecat::rtvi::BotTTSTextData& data) override {
-        record("bot-tts-text:" + data.text);
+    void on_tts_raw_text(const pipecat::rtvi::TTSRawTextData& data) override {
+        record("tts-raw-text:" + data.text);
     }
 
    private:

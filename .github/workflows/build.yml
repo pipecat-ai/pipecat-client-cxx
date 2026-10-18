@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  DAILY_CORE_VERSION: 0.23.0
+  DAILY_CORE_VERSION: 0.25.0
 
 jobs:
   unix:

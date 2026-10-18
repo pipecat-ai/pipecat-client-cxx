@@ -42,7 +42,7 @@ TEST(PipecatClient, ConnectWaitsForBotReady) {
 
     auto data = client->connect({{"room_url", "https://example.com/room"}});
 
-    EXPECT_EQ(data.version, "2.1.0");
+    EXPECT_EQ(data.version, "2.2.0");
     EXPECT_EQ(client->state(), TransportState::Ready);
     EXPECT_TRUE(client->connected());
     EXPECT_EQ(
@@ -53,10 +53,10 @@ TEST(PipecatClient, ConnectWaitsForBotReady) {
     auto ready_message = transport->ready_message();
     ASSERT_TRUE(ready_message.has_value());
     EXPECT_EQ(ready_message->type, "client-ready");
-    EXPECT_EQ(ready_message->data["version"], "2.1.0");
+    EXPECT_EQ(ready_message->data["version"], "2.2.0");
     EXPECT_EQ(ready_message->data["about"]["library"], "pipecat-client-cxx");
 
-    ASSERT_TRUE(recorder.wait_for("bot-ready:2.1.0"));
+    ASSERT_TRUE(recorder.wait_for("bot-ready:2.2.0"));
     EXPECT_EQ(
             recorder.events(),
             (Events {
@@ -66,7 +66,7 @@ TEST(PipecatClient, ConnectWaitsForBotReady) {
                     "state:connected",
                     "connected",
                     "state:ready",
-                    "bot-ready:2.1.0",
+                    "bot-ready:2.2.0",
             })
     );
 }
@@ -423,21 +423,24 @@ TEST(PipecatClient, DispatchesMessages) {
     const json MESSAGES[] = {
             rtvi_message("user-started-speaking"),
             rtvi_message(
-                    "user-transcription", {{"text", "Hi"}, {"final", true}}
+                    "user-input",
+                    {{"text", "Hi"},
+                     {"input_type", "transcription"},
+                     {"final", true}}
             ),
+            rtvi_message("stt-raw-text", {{"text", "Hi"}, {"final", true}}),
             rtvi_message("user-stopped-speaking"),
             rtvi_message("user-llm-text", {{"text", "Hi"}}),
             rtvi_message("user-mute-started"),
             rtvi_message("user-mute-stopped"),
             rtvi_message("bot-llm-started"),
-            rtvi_message("bot-llm-text", {{"text", "Hel"}}),
+            rtvi_message("llm-raw-text", {{"text", "Hel"}}),
             rtvi_message("bot-llm-stopped"),
             rtvi_message("bot-started-speaking"),
             rtvi_message("bot-tts-started"),
-            rtvi_message("bot-tts-text", {{"text", "Hello"}}),
+            rtvi_message("tts-raw-text", {{"text", "Hello"}}),
             rtvi_message(
-                    "bot-output",
-                    {{"text", "Hello"}, {"aggregated_by", "sentence"}}
+                    "bot-output", {{"text", "Hello"}, {"text_type", "sentence"}}
             ),
             rtvi_message("bot-tts-stopped"),
             rtvi_message("bot-stopped-speaking"),
@@ -468,6 +471,8 @@ TEST(PipecatClient, DispatchesMessages) {
                     {{"search_result", "Sunny"}, {"origins", json::array()}}
             ),
             rtvi_message("bot-transcription", {{"text", "Ignored"}}),
+            rtvi_message("bot-llm-text", {{"text", "Ignored"}}),
+            rtvi_message("bot-tts-text", {{"text", "Ignored"}}),
             rtvi_message("ui-command", {{"command", "click"}}),
             rtvi_message("llm-function-call", {{"function_name", "get_time"}}),
             {{"label", "other"}, {"type", "bot-output"}},
@@ -485,17 +490,18 @@ TEST(PipecatClient, DispatchesMessages) {
             Events(first, events.end()),
             (Events {
                     "user-started-speaking",
-                    "user-transcript:Hi:final",
+                    "user-input:transcription:Hi:final",
+                    "stt-raw-text:Hi:final",
                     "user-stopped-speaking",
                     "user-llm-text:Hi",
                     "user-mute-started",
                     "user-mute-stopped",
                     "bot-llm-started",
-                    "bot-llm-text:Hel",
+                    "llm-raw-text:Hel",
                     "bot-llm-stopped",
                     "bot-started-speaking",
                     "bot-tts-started",
-                    "bot-tts-text:Hello",
+                    "tts-raw-text:Hello",
                     "bot-output:Hello:sentence",
                     "bot-tts-stopped",
                     "bot-stopped-speaking",
@@ -512,6 +518,43 @@ TEST(PipecatClient, DispatchesMessages) {
                     "unhandled:llm-function-call",
                     R"(server-message:{"done":true})",
             })
+    );
+}
+
+TEST(PipecatClient, UserTranscriptionFromOlderBotsIsUserInput) {
+    Recorder recorder;
+    auto [transport, client] = make_client(recorder);
+    transport->bot_version = "2.1.0";
+    client->connect();
+
+    transport->deliver_message(rtvi_message(
+            "user-transcription", {{"text", "Hi"}, {"final", false}}
+    ));
+
+    ASSERT_TRUE(recorder.wait_for("user-input:transcription:Hi"));
+}
+
+TEST(PipecatClient, IgnoresUserTranscriptionFromNewerBots) {
+    Recorder recorder;
+    auto [transport, client] = make_client(recorder);
+    transport->bot_version = "2.2.0";
+    client->connect();
+
+    transport->deliver_message(rtvi_message(
+            "user-input",
+            {{"text", "Hi"}, {"input_type", "transcription"}, {"final", true}}
+    ));
+    transport->deliver_message(rtvi_message(
+            "user-transcription", {{"text", "Hi"}, {"final", true}}
+    ));
+    transport->deliver_message(
+            rtvi_message("server-message", {{"done", true}})
+    );
+
+    ASSERT_TRUE(recorder.wait_for(R"(server-message:{"done":true})"));
+    EXPECT_EQ(
+            recorder.events("user-input"),
+            (Events {"user-input:transcription:Hi:final"})
     );
 }
 

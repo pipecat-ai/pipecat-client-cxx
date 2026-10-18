@@ -131,17 +131,28 @@ class PipecatClientCallbacks {
 
     /// @}
 
-    /// @name Transcription and output
+    /// @name Input and output
     /// @{
 
-    /// What the user said. It can arrive several times, until it's final.
-    virtual void on_user_transcript(const rtvi::TranscriptData& /* data */) {}
+    /// What the user said or typed. A transcription can arrive several times,
+    /// until it's final.
+    virtual void on_user_input(const rtvi::UserInputData& /* data */) {}
 
     /// User text was sent to the bot's LLM.
     virtual void on_user_llm_text(const rtvi::UserLLMTextData& /* data */) {}
 
     /// What the bot says or outputs.
     virtual void on_bot_output(const rtvi::BotOutputData& /* data */) {}
+
+    /// @}
+
+    /// @name Speech-to-text
+    /// @{
+
+    /// A transcription, as the bot's speech-to-text made it, interim ones
+    /// included. Bots on RTVI 2.2 or newer send it only if they're set up to,
+    /// e.g. for debugging. To show what the user said, use on_user_input().
+    virtual void on_stt_raw_text(const rtvi::STTRawTextData& /* data */) {}
 
     /// @}
 
@@ -154,8 +165,10 @@ class PipecatClientCallbacks {
     /// The bot's LLM finished responding.
     virtual void on_bot_llm_stopped() {}
 
-    /// Text from the bot's LLM, as it streams.
-    virtual void on_bot_llm_text(const rtvi::BotLLMTextData& /* data */) {}
+    /// Text from the bot's LLM, as it streams. Bots on RTVI 2.2 or newer send
+    /// it only if they're set up to, e.g. for debugging. To show what the bot
+    /// says, use on_bot_output().
+    virtual void on_llm_raw_text(const rtvi::LLMRawTextData& /* data */) {}
 
     /// Search results used by the bot's LLM.
     virtual void on_bot_llm_search_response(
@@ -197,8 +210,10 @@ class PipecatClientCallbacks {
     /// The bot's text-to-speech stopped.
     virtual void on_bot_tts_stopped() {}
 
-    /// Text the bot is speaking.
-    virtual void on_bot_tts_text(const rtvi::BotTTSTextData& /* data */) {}
+    /// Text the bot's text-to-speech speaks, as it speaks it. Bots on RTVI 2.2
+    /// or newer send it only if they're set up to, e.g. for debugging. To show
+    /// what the bot says, use on_bot_output().
+    virtual void on_tts_raw_text(const rtvi::TTSRawTextData& /* data */) {}
 
     /// @}
 };
@@ -336,7 +351,10 @@ class PipecatClient {
     /// @{
 
     /// Sends text to the bot's LLM, as if the user said it.
-    void send_text(
+    ///
+    /// Returns the ID of the message. Bots on RTVI 2.2 or newer report the text
+    /// with on_user_input(), with this ID as `msg_id`.
+    std::string send_text(
             const std::string& content,
             const rtvi::SendTextOptions& options = {}
     );
