@@ -114,20 +114,22 @@ const char* to_string(MessageType type) {
         return "user-llm-text";
     case MessageType::BotOutput:
         return "bot-output";
-    case MessageType::BotLLMText:
-        return "bot-llm-text";
     case MessageType::BotLLMStarted:
         return "bot-llm-started";
     case MessageType::BotLLMStopped:
         return "bot-llm-stopped";
     case MessageType::BotLLMSearchResponse:
         return "bot-llm-search-response";
-    case MessageType::BotTTSText:
-        return "bot-tts-text";
     case MessageType::BotTTSStarted:
         return "bot-tts-started";
     case MessageType::BotTTSStopped:
         return "bot-tts-stopped";
+    case MessageType::STTRawText:
+        return "stt-raw-text";
+    case MessageType::LLMRawText:
+        return "llm-raw-text";
+    case MessageType::TTSRawText:
+        return "tts-raw-text";
     case MessageType::LLMFunctionCallStarted:
         return "llm-function-call-started";
     case MessageType::LLMFunctionCallInProgress:
@@ -294,6 +296,13 @@ void from_json(const json& j, UserInputData& data) {
     data.timestamp = value_or<std::string>(j, "timestamp", "");
     data.user_id = optional_value<std::string>(j, "user_id");
     data.msg_id = optional_value<std::string>(j, "msg_id");
+}
+
+void from_json(const json& j, STTRawTextData& data) {
+    data.text = value_or<std::string>(j, "text", "");
+    data.final = value_or(j, "final", false);
+    data.timestamp = value_or<std::string>(j, "timestamp", "");
+    data.user_id = value_or<std::string>(j, "user_id", "");
 }
 
 void from_json(const json& j, TextData& data) {

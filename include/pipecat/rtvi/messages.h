@@ -61,13 +61,14 @@ enum class MessageType {
     UserInput,                  ///< What the user said or typed.
     UserLLMText,                ///< User text sent to the bot's LLM.
     BotOutput,                  ///< What the bot says or outputs.
-    BotLLMText,                 ///< Text from the bot's LLM, as it streams.
     BotLLMStarted,              ///< The bot's LLM started responding.
     BotLLMStopped,              ///< The bot's LLM finished responding.
     BotLLMSearchResponse,       ///< Search results used by the bot's LLM.
-    BotTTSText,                 ///< Text the bot is speaking.
     BotTTSStarted,              ///< The bot's text-to-speech started.
     BotTTSStopped,              ///< The bot's text-to-speech stopped.
+    STTRawText,                 ///< A transcription, as the bot made it.
+    LLMRawText,                 ///< Text from the bot's LLM, as it streams.
+    TTSRawText,                 ///< Text the bot speaks, as it speaks it.
     LLMFunctionCallStarted,     ///< The bot's LLM started a function call.
     LLMFunctionCallInProgress,  ///< A function call is running.
     LLMFunctionCallStopped,     ///< A function call finished.
@@ -183,6 +184,18 @@ struct UserInputData {
     std::optional<std::string> msg_id;
 };
 
+/// A transcription, as the bot's speech-to-text made it.
+struct STTRawTextData {
+    /// The words.
+    std::string text;
+    /// Whether the transcription is final. If not, a new one will replace it.
+    bool final = false;
+    /// When it was said, as an ISO 8601 date.
+    std::string timestamp;
+    /// ID of the user who spoke.
+    std::string user_id;
+};
+
 /// Some text.
 struct TextData {
     /// The text.
@@ -193,10 +206,10 @@ struct TextData {
 using UserLLMTextData = TextData;
 
 /// Text from the bot's LLM, as it streams.
-using BotLLMTextData = TextData;
+using LLMRawTextData = TextData;
 
-/// Text the bot is speaking.
-using BotTTSTextData = TextData;
+/// Text the bot's text-to-speech speaks, as it speaks it.
+using TTSRawTextData = TextData;
 
 /// How much of a text the bot has spoken.
 struct SpokenProgressData {
@@ -369,6 +382,7 @@ void from_json(const nlohmann::json& j, BotCapabilities& data);
 void from_json(const nlohmann::json& j, BotReadyData& data);
 void from_json(const nlohmann::json& j, ErrorData& data);
 void from_json(const nlohmann::json& j, UserInputData& data);
+void from_json(const nlohmann::json& j, STTRawTextData& data);
 void from_json(const nlohmann::json& j, TextData& data);
 void from_json(const nlohmann::json& j, SpokenProgressData& data);
 void from_json(const nlohmann::json& j, BotOutputData& data);

@@ -957,9 +957,10 @@ void PipecatClient::Impl::handle_message(const rtvi::Message& message) {
 
     const json& data = message.data;
 
-    // Current bots still send this deprecated message along with bot-output,
-    // which replaces it.
-    if (message.type == "bot-transcription") {
+    // Current bots still send these deprecated messages, which bot-output and
+    // the raw text messages replace.
+    if (message.type == "bot-transcription" || message.type == "bot-llm-text" ||
+        message.type == "bot-tts-text") {
         return;
     }
 
@@ -1039,9 +1040,6 @@ void PipecatClient::Impl::handle_message(const rtvi::Message& message) {
     case MessageType::BotOutput:
         notify_data(data, &C::on_bot_output);
         break;
-    case MessageType::BotLLMText:
-        notify_data(data, &C::on_bot_llm_text);
-        break;
     case MessageType::BotLLMStarted:
         notify_event(&C::on_bot_llm_started);
         break;
@@ -1051,14 +1049,20 @@ void PipecatClient::Impl::handle_message(const rtvi::Message& message) {
     case MessageType::BotLLMSearchResponse:
         notify_data(data, &C::on_bot_llm_search_response);
         break;
-    case MessageType::BotTTSText:
-        notify_data(data, &C::on_bot_tts_text);
-        break;
     case MessageType::BotTTSStarted:
         notify_event(&C::on_bot_tts_started);
         break;
     case MessageType::BotTTSStopped:
         notify_event(&C::on_bot_tts_stopped);
+        break;
+    case MessageType::STTRawText:
+        notify_data(data, &C::on_stt_raw_text);
+        break;
+    case MessageType::LLMRawText:
+        notify_data(data, &C::on_llm_raw_text);
+        break;
+    case MessageType::TTSRawText:
+        notify_data(data, &C::on_tts_raw_text);
         break;
     case MessageType::LLMFunctionCallInProgress: {
         auto call = data.get<rtvi::LLMFunctionCallInProgressData>();

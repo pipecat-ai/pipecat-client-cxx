@@ -146,6 +146,16 @@ class PipecatClientCallbacks {
 
     /// @}
 
+    /// @name Speech-to-text
+    /// @{
+
+    /// A transcription, as the bot's speech-to-text made it, interim ones
+    /// included. Bots on RTVI 2.2 or newer send it only if they're set up to,
+    /// e.g. for debugging. To show what the user said, use on_user_input().
+    virtual void on_stt_raw_text(const rtvi::STTRawTextData& /* data */) {}
+
+    /// @}
+
     /// @name LLM
     /// @{
 
@@ -155,8 +165,10 @@ class PipecatClientCallbacks {
     /// The bot's LLM finished responding.
     virtual void on_bot_llm_stopped() {}
 
-    /// Text from the bot's LLM, as it streams.
-    virtual void on_bot_llm_text(const rtvi::BotLLMTextData& /* data */) {}
+    /// Text from the bot's LLM, as it streams. Bots on RTVI 2.2 or newer send
+    /// it only if they're set up to, e.g. for debugging. To show what the bot
+    /// says, use on_bot_output().
+    virtual void on_llm_raw_text(const rtvi::LLMRawTextData& /* data */) {}
 
     /// Search results used by the bot's LLM.
     virtual void on_bot_llm_search_response(
@@ -198,8 +210,10 @@ class PipecatClientCallbacks {
     /// The bot's text-to-speech stopped.
     virtual void on_bot_tts_stopped() {}
 
-    /// Text the bot is speaking.
-    virtual void on_bot_tts_text(const rtvi::BotTTSTextData& /* data */) {}
+    /// Text the bot's text-to-speech speaks, as it speaks it. Bots on RTVI 2.2
+    /// or newer send it only if they're set up to, e.g. for debugging. To show
+    /// what the bot says, use on_bot_output().
+    virtual void on_tts_raw_text(const rtvi::TTSRawTextData& /* data */) {}
 
     /// @}
 };

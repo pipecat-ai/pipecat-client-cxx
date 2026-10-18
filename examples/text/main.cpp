@@ -5,7 +5,8 @@
 //
 
 // Chats with a Pipecat bot in the terminal: starts the bot, sends each line you
-// type and prints the bot's answers as they stream in.
+// type and prints the bot's answers. The bot needs Pipecat 1.13 or newer, the
+// first to send answers that aren't spoken as bot output.
 //
 // Usage: text_chat [--transport TRANSPORT] START_URL
 //
@@ -39,14 +40,9 @@ namespace {
 // Callbacks run on the client's own thread, so printing needs a lock.
 std::mutex print_mutex;
 
-void print(const std::string& text, bool new_line = true) {
+void print(const std::string& text) {
     std::lock_guard<std::mutex> lock(print_mutex);
-    std::cout << text;
-    if (new_line) {
-        std::cout << std::endl;
-    } else {
-        std::cout << std::flush;
-    }
+    std::cout << text << std::endl;
 }
 
 class App : public pipecat::PipecatClientCallbacks {
@@ -56,20 +52,12 @@ class App : public pipecat::PipecatClientCallbacks {
         );
     }
 
-    // The bot answers in text only (see main()), so print its LLM's text as
-    // it streams in.
-    void on_bot_llm_text(const pipecat::rtvi::BotLLMTextData& data) override {
-        if (!_answering) {
-            _answering = true;
-            print("Bot: ", false);
-        }
-        print(data.text, false);
-    }
-
-    void on_bot_llm_stopped() override {
-        if (_answering) {
-            _answering = false;
-            print("");
+    // The bot answers in text only (see main()), a sentence at a time. Text
+    // the bot speaks, like a greeting, comes again as it speaks it, so only
+    // print a sentence when it's new.
+    void on_bot_output(const pipecat::rtvi::BotOutputData& data) override {
+        if (data.spoken_status == "new") {
+            print("Bot: " + data.text);
         }
     }
 
@@ -78,9 +66,6 @@ class App : public pipecat::PipecatClientCallbacks {
     }
 
     void on_disconnected() override { print("Disconnected."); }
-
-   private:
-    bool _answering = false;
 };
 
 // Creates the transport called `name`, if the example was built with it, and

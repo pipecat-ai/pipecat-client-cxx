@@ -1,7 +1,8 @@
 # Examples
 
 - [text](text): chat with a bot in the terminal. Type a message and the bot
-  answers in text. No audio devices needed.
+  answers in text. No audio devices needed. The bot needs Pipecat 1.13 or
+  newer.
 - [voice](voice): talk with a bot using your microphone and speakers, with
   [PortAudio](https://www.portaudio.com). It also answers the bot's
   `get_current_time` function calls, if the bot asks the client to run them.

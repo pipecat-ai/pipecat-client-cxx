@@ -43,13 +43,14 @@ TEST(MessageType, RoundTripsAllTypes) {
             {MessageType::UserInput, "user-input"},
             {MessageType::UserLLMText, "user-llm-text"},
             {MessageType::BotOutput, "bot-output"},
-            {MessageType::BotLLMText, "bot-llm-text"},
             {MessageType::BotLLMStarted, "bot-llm-started"},
             {MessageType::BotLLMStopped, "bot-llm-stopped"},
             {MessageType::BotLLMSearchResponse, "bot-llm-search-response"},
-            {MessageType::BotTTSText, "bot-tts-text"},
             {MessageType::BotTTSStarted, "bot-tts-started"},
             {MessageType::BotTTSStopped, "bot-tts-stopped"},
+            {MessageType::STTRawText, "stt-raw-text"},
+            {MessageType::LLMRawText, "llm-raw-text"},
+            {MessageType::TTSRawText, "tts-raw-text"},
             {MessageType::LLMFunctionCallStarted, "llm-function-call-started"},
             {MessageType::LLMFunctionCallInProgress,
              "llm-function-call-in-progress"},
@@ -295,11 +296,23 @@ TEST(ServerData, UserInput) {
     EXPECT_EQ(data.msg_id, "abc");
 }
 
+TEST(ServerData, STTRawText) {
+    auto data = json::parse(R"({
+        "text": "Hel", "final": false, "timestamp": "2026-09-28T10:00:00",
+        "user_id": "user"
+    })")
+                        .get<STTRawTextData>();
+    EXPECT_EQ(data.text, "Hel");
+    EXPECT_FALSE(data.final);
+    EXPECT_EQ(data.timestamp, "2026-09-28T10:00:00");
+    EXPECT_EQ(data.user_id, "user");
+}
+
 TEST(ServerData, Text) {
     EXPECT_EQ(
-            json::parse(R"({"text": "Hi"})").get<BotLLMTextData>().text, "Hi"
+            json::parse(R"({"text": "Hi"})").get<LLMRawTextData>().text, "Hi"
     );
-    EXPECT_EQ(json::parse("{}").get<BotTTSTextData>().text, "");
+    EXPECT_EQ(json::parse("{}").get<TTSRawTextData>().text, "");
     EXPECT_EQ(json(nullptr).get<TextData>().text, "");
 }
 
