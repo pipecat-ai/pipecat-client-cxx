@@ -439,8 +439,7 @@ TEST(PipecatClient, DispatchesMessages) {
             rtvi_message("bot-tts-started"),
             rtvi_message("bot-tts-text", {{"text", "Hello"}}),
             rtvi_message(
-                    "bot-output",
-                    {{"text", "Hello"}, {"aggregated_by", "sentence"}}
+                    "bot-output", {{"text", "Hello"}, {"text_type", "sentence"}}
             ),
             rtvi_message("bot-tts-stopped"),
             rtvi_message("bot-stopped-speaking"),

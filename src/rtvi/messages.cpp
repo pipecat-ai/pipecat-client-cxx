@@ -307,7 +307,10 @@ void from_json(const json& j, SpokenProgressData& data) {
 
 void from_json(const json& j, BotOutputData& data) {
     data.text = value_or<std::string>(j, "text", "");
-    data.aggregated_by = value_or<std::string>(j, "aggregated_by", "");
+    // Bots older than RTVI 2.2 only send aggregated_by.
+    data.text_type = value_or<std::string>(
+            j, "text_type", value_or<std::string>(j, "aggregated_by", "")
+    );
     data.segment_id = optional_value<int64_t>(j, "segment_id");
     data.will_be_spoken = optional_value<bool>(j, "will_be_spoken");
     data.spoken_status = optional_value<std::string>(j, "spoken_status");

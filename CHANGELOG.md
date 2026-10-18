@@ -27,6 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The Daily transport needs the Daily Core SDK 0.25.0 or newer, the first
   whose header can be included from C++ as is.
 
+- `rtvi::BotOutputData::aggregated_by` is now `text_type`, as Pipecat 1.13
+  calls it. It's filled from `aggregated_by` for older bots.
+
 ### Removed
 
 - `PipecatClientCallbacks::on_user_transcript()` and `rtvi::TranscriptData`.

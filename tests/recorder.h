@@ -149,7 +149,7 @@ class Recorder : public pipecat::PipecatClientCallbacks {
         record("user-llm-text:" + data.text);
     }
     void on_bot_output(const pipecat::rtvi::BotOutputData& data) override {
-        record("bot-output:" + data.text + ":" + data.aggregated_by);
+        record("bot-output:" + data.text + ":" + data.text_type);
     }
 
     // LLM

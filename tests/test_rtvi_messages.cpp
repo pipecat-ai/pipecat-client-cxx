@@ -306,6 +306,7 @@ TEST(ServerData, Text) {
 TEST(ServerData, BotOutput) {
     auto data = json::parse(R"({
         "text": "Hello there.",
+        "text_type": "sentence",
         "aggregated_by": "sentence",
         "segment_id": 3,
         "will_be_spoken": true,
@@ -317,7 +318,7 @@ TEST(ServerData, BotOutput) {
     })")
                         .get<BotOutputData>();
     EXPECT_EQ(data.text, "Hello there.");
-    EXPECT_EQ(data.aggregated_by, "sentence");
+    EXPECT_EQ(data.text_type, "sentence");
     EXPECT_EQ(data.segment_id, 3);
     EXPECT_EQ(data.will_be_spoken, true);
     EXPECT_EQ(data.spoken_status, "in-progress");
@@ -328,14 +329,22 @@ TEST(ServerData, BotOutput) {
 
 TEST(ServerData, BotOutputMinimal) {
     auto data = json::parse(R"({
-        "text": "Hi", "aggregated_by": "word", "segment_id": null
+        "text": "Hi", "text_type": "word", "segment_id": null
     })")
                         .get<BotOutputData>();
     EXPECT_EQ(data.text, "Hi");
+    EXPECT_EQ(data.text_type, "word");
     EXPECT_EQ(data.segment_id, std::nullopt);
     EXPECT_EQ(data.will_be_spoken, std::nullopt);
     EXPECT_EQ(data.spoken_status, std::nullopt);
     EXPECT_FALSE(data.spoken_progress.has_value());
+}
+
+TEST(ServerData, BotOutputFromOlderBots) {
+    // Bots older than RTVI 2.2 only send aggregated_by.
+    auto data = json::parse(R"({"text": "Hi", "aggregated_by": "sentence"})")
+                        .get<BotOutputData>();
+    EXPECT_EQ(data.text_type, "sentence");
 }
 
 TEST(ServerData, Metrics) {
