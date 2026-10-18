@@ -1,7 +1,7 @@
 # Overview
 
 The Pipecat C++ Client SDK connects native apps, like robots, kiosks, devices
-or games, to [Pipecat](https://pipecat.ai) bots. It speaks RTVI 2.1, the
+or games, to [Pipecat](https://pipecat.ai) bots. It speaks RTVI 2.2, the
 protocol Pipecat clients and bots use to talk to each other.
 
 This is the API reference. To install the SDK and get started, see the

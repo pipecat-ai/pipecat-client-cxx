@@ -29,7 +29,7 @@
 namespace pipecat::rtvi {
 
 /// The RTVI protocol version this library speaks.
-inline constexpr const char* PROTOCOL_VERSION = "2.1.0";
+inline constexpr const char* PROTOCOL_VERSION = "2.2.0";
 
 /// The label of every RTVI message.
 inline constexpr const char* MESSAGE_LABEL = "rtvi-ai";
@@ -234,7 +234,11 @@ struct BotOutputData {
     std::optional<int64_t> segment_id;
     /// Whether the bot will speak it.
     std::optional<bool> will_be_spoken;
-    /// Where the bot is in speaking it: "new", "in-progress" or "completed".
+    /// Where the bot is in speaking it: "new" on the first message of a text,
+    /// "in-progress" as the bot speaks each word (only with text-to-speech
+    /// services that report word timings), and "completed" once the bot has
+    /// spoken it all. Text the bot doesn't speak gets a single message, with
+    /// "new" from bots on RTVI 2.2 or newer and no status from older ones.
     std::optional<std::string> spoken_status;
     /// How much of the text the bot has spoken. Only for text it speaks.
     std::optional<SpokenProgressData> spoken_progress;

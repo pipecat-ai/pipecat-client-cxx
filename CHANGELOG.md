@@ -29,6 +29,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The client speaks RTVI 2.2, so bots on Pipecat 1.13 or newer also send it
+  the bot's backchannels, short acknowledgments like "Mm-hmm." the bot says
+  while the user talks, to `on_bot_output()` with `text_type`
+  `"backchannel"`, and the raw text messages if they're set up to.
+
 - The Daily transport needs the Daily Core SDK 0.25.0 or newer, the first
   whose header can be included from C++ as is.
 

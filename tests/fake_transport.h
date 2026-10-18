@@ -52,7 +52,7 @@ class FakeTransport : public pipecat::Transport {
     bool fail_connect = false;
     // Answer client-ready with bot-ready.
     bool send_bot_ready = true;
-    std::string bot_version = "2.1.0";
+    std::string bot_version = "2.2.0";
     size_t max_size = 64 * 1024;
     // Optional hooks, run when disconnect() or send_message() start, on the
     // caller's thread.

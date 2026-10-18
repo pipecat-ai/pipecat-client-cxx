@@ -290,7 +290,7 @@ TEST(StartBot, StartBotAndConnect) {
     request.endpoint = server.url();
     auto data = client->start_bot_and_connect(request);
 
-    EXPECT_EQ(data.version, "2.1.0");
+    EXPECT_EQ(data.version, "2.2.0");
     EXPECT_EQ(
             transport->connect_params(),
             json({{"room_url", "https://example.com/room"}})

@@ -125,7 +125,7 @@ TEST(Message, ClientReady) {
     EXPECT_EQ(message.type, "client-ready");
     EXPECT_EQ(
             message.data,
-            json::parse(R"({"version": "2.1.0", "about": {"library": "test"}})")
+            json::parse(R"({"version": "2.2.0", "about": {"library": "test"}})")
     );
 
     about.library_version = "1.0.0";
