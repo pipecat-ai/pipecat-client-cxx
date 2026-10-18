@@ -423,7 +423,10 @@ TEST(PipecatClient, DispatchesMessages) {
     const json MESSAGES[] = {
             rtvi_message("user-started-speaking"),
             rtvi_message(
-                    "user-transcription", {{"text", "Hi"}, {"final", true}}
+                    "user-input",
+                    {{"text", "Hi"},
+                     {"input_type", "transcription"},
+                     {"final", true}}
             ),
             rtvi_message("user-stopped-speaking"),
             rtvi_message("user-llm-text", {{"text", "Hi"}}),
@@ -485,7 +488,7 @@ TEST(PipecatClient, DispatchesMessages) {
             Events(first, events.end()),
             (Events {
                     "user-started-speaking",
-                    "user-transcript:Hi:final",
+                    "user-input:transcription:Hi:final",
                     "user-stopped-speaking",
                     "user-llm-text:Hi",
                     "user-mute-started",
@@ -512,6 +515,43 @@ TEST(PipecatClient, DispatchesMessages) {
                     "unhandled:llm-function-call",
                     R"(server-message:{"done":true})",
             })
+    );
+}
+
+TEST(PipecatClient, UserTranscriptionFromOlderBotsIsUserInput) {
+    Recorder recorder;
+    auto [transport, client] = make_client(recorder);
+    transport->bot_version = "2.1.0";
+    client->connect();
+
+    transport->deliver_message(rtvi_message(
+            "user-transcription", {{"text", "Hi"}, {"final", false}}
+    ));
+
+    ASSERT_TRUE(recorder.wait_for("user-input:transcription:Hi"));
+}
+
+TEST(PipecatClient, IgnoresUserTranscriptionFromNewerBots) {
+    Recorder recorder;
+    auto [transport, client] = make_client(recorder);
+    transport->bot_version = "2.2.0";
+    client->connect();
+
+    transport->deliver_message(rtvi_message(
+            "user-input",
+            {{"text", "Hi"}, {"input_type", "transcription"}, {"final", true}}
+    ));
+    transport->deliver_message(rtvi_message(
+            "user-transcription", {{"text", "Hi"}, {"final", true}}
+    ));
+    transport->deliver_message(
+            rtvi_message("server-message", {{"done", true}})
+    );
+
+    ASSERT_TRUE(recorder.wait_for(R"(server-message:{"done":true})"));
+    EXPECT_EQ(
+            recorder.events("user-input"),
+            (Events {"user-input:transcription:Hi:final"})
     );
 }
 

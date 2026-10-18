@@ -71,8 +71,7 @@ class App : public pipecat::PipecatClientCallbacks {
         print("The bot is ready. Start talking (Ctrl+C quits).");
     }
 
-    void on_user_transcript(const pipecat::rtvi::TranscriptData& data
-    ) override {
+    void on_user_input(const pipecat::rtvi::UserInputData& data) override {
         if (data.final) {
             print("You: " + data.text);
         }

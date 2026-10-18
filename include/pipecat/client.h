@@ -131,11 +131,12 @@ class PipecatClientCallbacks {
 
     /// @}
 
-    /// @name Transcription and output
+    /// @name Input and output
     /// @{
 
-    /// What the user said. It can arrive several times, until it's final.
-    virtual void on_user_transcript(const rtvi::TranscriptData& /* data */) {}
+    /// What the user said or typed. A transcription can arrive several times,
+    /// until it's final.
+    virtual void on_user_input(const rtvi::UserInputData& /* data */) {}
 
     /// User text was sent to the bot's LLM.
     virtual void on_user_llm_text(const rtvi::UserLLMTextData& /* data */) {}
@@ -336,7 +337,10 @@ class PipecatClient {
     /// @{
 
     /// Sends text to the bot's LLM, as if the user said it.
-    void send_text(
+    ///
+    /// Returns the ID of the message. Bots on RTVI 2.2 or newer report the text
+    /// with on_user_input(), with this ID as `msg_id`.
+    std::string send_text(
             const std::string& content,
             const rtvi::SendTextOptions& options = {}
     );

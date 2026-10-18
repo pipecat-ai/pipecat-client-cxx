@@ -58,7 +58,7 @@ enum class MessageType {
     BotInterrupted,             ///< The bot was interrupted.
     UserMuteStarted,            ///< The bot started ignoring user audio.
     UserMuteStopped,            ///< The bot stopped ignoring user audio.
-    UserTranscription,          ///< What the user said.
+    UserInput,                  ///< What the user said or typed.
     UserLLMText,                ///< User text sent to the bot's LLM.
     BotOutput,                  ///< What the bot says or outputs.
     BotLLMText,                 ///< Text from the bot's LLM, as it streams.
@@ -162,16 +162,25 @@ struct ErrorData {
     bool fatal = false;
 };
 
-/// What the user said.
-struct TranscriptData {
+/// What the user said or typed.
+struct UserInputData {
     /// The words.
     std::string text;
-    /// Whether the text is final. If not, a new transcript will replace it.
+    /// What kind of input it is: "transcription" for what the user said,
+    /// "chat" for text sent with PipecatClient::send_text(), or "backchannel"
+    /// for a short acknowledgment the user said while the bot talked, like
+    /// "mhm", which doesn't interrupt the bot.
+    std::string input_type;
+    /// Whether the text is final. Only a transcription can be not final, and
+    /// a new one will replace it.
     bool final = false;
-    /// When it was said, as an ISO 8601 date.
+    /// When it was said or sent, as an ISO 8601 date.
     std::string timestamp;
-    /// ID of the user who spoke.
-    std::string user_id;
+    /// ID of the user who spoke or typed. For chat, only with transports that
+    /// know who sent it, like Daily.
+    std::optional<std::string> user_id;
+    /// For chat, the ID PipecatClient::send_text() returned.
+    std::optional<std::string> msg_id;
 };
 
 /// Some text.
@@ -357,7 +366,7 @@ void from_json(const nlohmann::json& j, ClientMessageData& data);
 void from_json(const nlohmann::json& j, BotCapabilities& data);
 void from_json(const nlohmann::json& j, BotReadyData& data);
 void from_json(const nlohmann::json& j, ErrorData& data);
-void from_json(const nlohmann::json& j, TranscriptData& data);
+void from_json(const nlohmann::json& j, UserInputData& data);
 void from_json(const nlohmann::json& j, TextData& data);
 void from_json(const nlohmann::json& j, SpokenProgressData& data);
 void from_json(const nlohmann::json& j, BotOutputData& data);

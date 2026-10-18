@@ -141,10 +141,9 @@ class Recorder : public pipecat::PipecatClientCallbacks {
 
     // Transcription and output
 
-    void on_user_transcript(
-            const pipecat::rtvi::TranscriptData& data
-    ) override {
-        record("user-transcript:" + data.text + (data.final ? ":final" : ""));
+    void on_user_input(const pipecat::rtvi::UserInputData& data) override {
+        record("user-input:" + data.input_type + ":" + data.text +
+               (data.final ? ":final" : ""));
     }
     void on_user_llm_text(const pipecat::rtvi::UserLLMTextData& data) override {
         record("user-llm-text:" + data.text);

@@ -13,10 +13,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   whether it receives the user's audio, video or screen share, sends audio or
   video, and sends metrics. Bots on RTVI 2.2 (Pipecat 1.13) or newer send it.
 
+- `PipecatClientCallbacks::on_user_input()` reports what the user said or
+  typed, in `rtvi::UserInputData`: a transcription, text sent with
+  `send_text()`, or a backchannel, a short acknowledgment like "mhm" the user
+  said while the bot talked. Bots older than RTVI 2.2 only report
+  transcriptions.
+
+- `PipecatClient::send_text()` returns the ID of the message, which bots on
+  RTVI 2.2 or newer send back as the `msg_id` of `on_user_input()`.
+
 ### Changed
 
 - The Daily transport needs the Daily Core SDK 0.25.0 or newer, the first
   whose header can be included from C++ as is.
+
+### Removed
+
+- `PipecatClientCallbacks::on_user_transcript()` and `rtvi::TranscriptData`.
+  Pipecat 1.13 deprecates the `user-transcription` message: use
+  `on_user_input()`, which also reports the transcriptions of older bots.
 
 ## [1.1.0] - 2026-10-06
 

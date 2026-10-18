@@ -65,10 +65,11 @@ TEST(Messaging, SendText) {
 
     rtvi::SendTextOptions options;
     options.run_immediately = false;
-    client->send_text("Hello", options);
+    auto id = client->send_text("Hello", options);
 
     auto sent = transport->sent_messages("send-text");
     ASSERT_EQ(sent.size(), 1u);
+    EXPECT_EQ(sent[0].id, id);
     EXPECT_EQ(sent[0].data, json::parse(R"({
         "content": "Hello", "options": {"run_immediately": false}
     })"));

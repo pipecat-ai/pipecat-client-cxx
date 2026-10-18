@@ -94,6 +94,12 @@ std::array<int, 3> parse_version(const std::string& version) {
     return parts;
 }
 
+// Whether a protocol version like "2.1.0" is older than `major`.`minor`.
+bool is_older_than(const std::string& version, int major, int minor) {
+    auto parts = parse_version(version);
+    return parts[0] < major || (parts[0] == major && parts[1] < minor);
+}
+
 }  // namespace
 
 class PipecatClient::Impl : public TransportObserver {
@@ -122,7 +128,7 @@ class PipecatClient::Impl : public TransportObserver {
 
     // Messages to the bot
 
-    void
+    std::string
     send_text(const std::string& content, const rtvi::SendTextOptions& options);
     void send_client_message(const std::string& type, const json& data);
     void disconnect_bot();
@@ -626,11 +632,13 @@ void PipecatClient::Impl::send(const rtvi::Message& message) {
     _transport->send_message(message);
 }
 
-void PipecatClient::Impl::send_text(
+std::string PipecatClient::Impl::send_text(
         const std::string& content,
         const rtvi::SendTextOptions& options
 ) {
-    send(rtvi::Message::send_text(content, options));
+    auto message = rtvi::Message::send_text(content, options);
+    send(message);
+    return message.id;
 }
 
 void PipecatClient::Impl::send_client_message(
@@ -653,16 +661,16 @@ void PipecatClient::Impl::send_dtmf(const std::string& buttons) {
         );
     }
 
-    std::array<int, 3> version;
+    std::string version;
     {
         std::lock_guard<std::mutex> lock(_mutex);
         if (_state != TransportState::Ready) {
             throw BotNotReadyError();
         }
-        version = parse_version(_bot_ready->version);
+        version = _bot_ready->version;
     }
 
-    if (version[0] < 2 || (version[0] == 2 && version[1] < 1)) {
+    if (is_older_than(version, 2, 1)) {
         throw UnsupportedFeatureError(
                 "DTMF", "the bot needs RTVI 2.1 or newer"
         );
@@ -955,6 +963,19 @@ void PipecatClient::Impl::handle_message(const rtvi::Message& message) {
         return;
     }
 
+    // Bots older than RTVI 2.2 report what the user says only with this
+    // deprecated message, so pass it on as user-input. Newer bots send
+    // user-input too.
+    if (message.type == "user-transcription") {
+        std::lock_guard<std::mutex> lock(_mutex);
+        if (_bot_ready && is_older_than(_bot_ready->version, 2, 2)) {
+            auto input = data.get<rtvi::UserInputData>();
+            input.input_type = "transcription";
+            notify_locked([input](C& c) { c.on_user_input(input); });
+        }
+        return;
+    }
+
     auto type = rtvi::parse_message_type(message.type);
     if (!type) {
         notify([message](C& c) { c.on_unhandled_message(message); });
@@ -1009,8 +1030,8 @@ void PipecatClient::Impl::handle_message(const rtvi::Message& message) {
     case MessageType::UserMuteStopped:
         notify_event(&C::on_user_mute_stopped);
         break;
-    case MessageType::UserTranscription:
-        notify_data(data, &C::on_user_transcript);
+    case MessageType::UserInput:
+        notify_data(data, &C::on_user_input);
         break;
     case MessageType::UserLLMText:
         notify_data(data, &C::on_user_llm_text);
@@ -1160,11 +1181,11 @@ int32_t PipecatClient::read_bot_audio(int16_t* frames, size_t num_frames) {
     return _impl->read_bot_audio(frames, num_frames);
 }
 
-void PipecatClient::send_text(
+std::string PipecatClient::send_text(
         const std::string& content,
         const rtvi::SendTextOptions& options
 ) {
-    _impl->send_text(content, options);
+    return _impl->send_text(content, options);
 }
 
 void PipecatClient::send_client_message(

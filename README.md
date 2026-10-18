@@ -38,7 +38,7 @@ class App : public pipecat::PipecatClientCallbacks {
         std::cout << "Bot ready" << std::endl;
     }
 
-    void on_user_transcript(const pipecat::rtvi::TranscriptData& data) override {
+    void on_user_input(const pipecat::rtvi::UserInputData& data) override {
         if (data.final) {
             std::cout << "User: " << data.text << std::endl;
         }

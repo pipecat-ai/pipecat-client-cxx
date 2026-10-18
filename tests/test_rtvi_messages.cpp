@@ -40,7 +40,7 @@ TEST(MessageType, RoundTripsAllTypes) {
             {MessageType::BotInterrupted, "bot-interrupted"},
             {MessageType::UserMuteStarted, "user-mute-started"},
             {MessageType::UserMuteStopped, "user-mute-stopped"},
-            {MessageType::UserTranscription, "user-transcription"},
+            {MessageType::UserInput, "user-input"},
             {MessageType::UserLLMText, "user-llm-text"},
             {MessageType::BotOutput, "bot-output"},
             {MessageType::BotLLMText, "bot-llm-text"},
@@ -270,16 +270,29 @@ TEST(ServerData, Error) {
     EXPECT_FALSE(data.fatal);
 }
 
-TEST(ServerData, Transcript) {
+TEST(ServerData, UserInput) {
     auto data = json::parse(R"({
-        "text": "Hello", "final": true, "timestamp": "2026-09-28T10:00:00",
-        "user_id": "user"
+        "text": "Hello", "input_type": "transcription", "final": true,
+        "timestamp": "2026-09-28T10:00:00", "user_id": "user"
     })")
-                        .get<TranscriptData>();
+                        .get<UserInputData>();
     EXPECT_EQ(data.text, "Hello");
+    EXPECT_EQ(data.input_type, "transcription");
     EXPECT_TRUE(data.final);
     EXPECT_EQ(data.timestamp, "2026-09-28T10:00:00");
     EXPECT_EQ(data.user_id, "user");
+    EXPECT_EQ(data.msg_id, std::nullopt);
+
+    // Text sent with send_text(), from a transport that doesn't know who sent
+    // it.
+    data = json::parse(R"({
+        "text": "Hi", "input_type": "chat", "final": true,
+        "timestamp": "2026-09-28T10:00:01", "msg_id": "abc"
+    })")
+                   .get<UserInputData>();
+    EXPECT_EQ(data.input_type, "chat");
+    EXPECT_EQ(data.user_id, std::nullopt);
+    EXPECT_EQ(data.msg_id, "abc");
 }
 
 TEST(ServerData, Text) {

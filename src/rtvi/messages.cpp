@@ -108,8 +108,8 @@ const char* to_string(MessageType type) {
         return "user-mute-started";
     case MessageType::UserMuteStopped:
         return "user-mute-stopped";
-    case MessageType::UserTranscription:
-        return "user-transcription";
+    case MessageType::UserInput:
+        return "user-input";
     case MessageType::UserLLMText:
         return "user-llm-text";
     case MessageType::BotOutput:
@@ -287,11 +287,13 @@ void from_json(const json& j, ErrorData& data) {
     data.fatal = value_or(j, "fatal", false);
 }
 
-void from_json(const json& j, TranscriptData& data) {
+void from_json(const json& j, UserInputData& data) {
     data.text = value_or<std::string>(j, "text", "");
+    data.input_type = value_or<std::string>(j, "input_type", "");
     data.final = value_or(j, "final", false);
     data.timestamp = value_or<std::string>(j, "timestamp", "");
-    data.user_id = value_or<std::string>(j, "user_id", "");
+    data.user_id = optional_value<std::string>(j, "user_id");
+    data.msg_id = optional_value<std::string>(j, "msg_id");
 }
 
 void from_json(const json& j, TextData& data) {
