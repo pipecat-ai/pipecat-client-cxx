@@ -164,7 +164,7 @@ Then, in your CMake project, point `CMAKE_PREFIX_PATH` to that directory and
 use:
 
 ```cmake
-find_package(pipecat 1.0 REQUIRED)
+find_package(pipecat 1.2 REQUIRED)
 target_link_libraries(my_app PRIVATE pipecat::pipecat)
 ```
 
@@ -205,7 +205,7 @@ Then use them as components of the package, which also finds their
 dependencies. Each component's target is `pipecat::<component>`:
 
 ```cmake
-find_package(pipecat 1.0 REQUIRED COMPONENTS daily)
+find_package(pipecat 1.2 REQUIRED COMPONENTS daily)
 target_link_libraries(my_app PRIVATE pipecat::daily)
 ```
 
