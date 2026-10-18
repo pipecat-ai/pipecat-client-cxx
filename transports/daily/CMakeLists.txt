@@ -10,10 +10,10 @@
 # Dependencies
 #
 
-# The oldest Daily Core SDK that works: the first with a CMake package, and
-# with the custom audio track fixes the transport needs. Point DailyCore_ROOT
-# (a CMake or environment variable) or CMAKE_PREFIX_PATH to the SDK.
-set(PIPECAT_DAILY_MIN_DAILY_CORE_VERSION 0.23.0)
+# The oldest Daily Core SDK that works: the first whose daily_core.h can be
+# included from C++ as is. Point DailyCore_ROOT (a CMake or environment
+# variable) or CMAKE_PREFIX_PATH to the SDK.
+set(PIPECAT_DAILY_MIN_DAILY_CORE_VERSION 0.25.0)
 find_package(DailyCore ${PIPECAT_DAILY_MIN_DAILY_CORE_VERSION} CONFIG REQUIRED)
 
 #

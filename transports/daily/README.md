@@ -71,8 +71,8 @@ The [examples](../../examples) can use the Daily transport, their default:
 The transport is built with the Pipecat client, from the root of this
 repository, when you add `-DPIPECAT_BUILD_DAILY=ON`. Besides what the client
 needs (see its [README](../../README.md)), you need the
-[Daily Core C++ SDK](https://github.com/daily-co/daily-core-sdk) 0.23.0 or
-newer. Download it for your platform from its
+[Daily Core SDK](https://github.com/daily-co/daily-core-sdk) 0.25.0 or newer.
+Download it for your platform from its
 [releases](https://github.com/daily-co/daily-core-sdk/releases) and unpack it.
 
 ### Linux and macOS

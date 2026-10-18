@@ -197,7 +197,7 @@ cmake . -G Ninja -Bbuild -DCMAKE_BUILD_TYPE=Release \
 
 | Transport | Option | Component | Needs |
 | --- | --- | --- | --- |
-| [Daily](transports/daily) | `PIPECAT_BUILD_DAILY` | `daily` | The [Daily Core C++ SDK](https://github.com/daily-co/daily-core-sdk) 0.23.0 or newer, with `DailyCore_ROOT` pointing to it |
+| [Daily](transports/daily) | `PIPECAT_BUILD_DAILY` | `daily` | The [Daily Core SDK](https://github.com/daily-co/daily-core-sdk) 0.25.0 or newer, with `DailyCore_ROOT` pointing to it |
 | [SmallWebRTC](transports/smallwebrtc) | `PIPECAT_BUILD_SMALLWEBRTC` | `smallwebrtc` | [libdatachannel](https://github.com/paullouisageneau/libdatachannel) 0.24 or newer with media support, [libopus](https://opus-codec.org) and [speexdsp](https://github.com/xiph/speexdsp), which CMake downloads if they're not installed. A downloaded libdatachannel needs OpenSSL |
 | [WebSocket](transports/websocket) | `PIPECAT_BUILD_WEBSOCKET` | `websocket` | [libdatachannel](https://github.com/paullouisageneau/libdatachannel) 0.24 or newer and [speexdsp](https://github.com/xiph/speexdsp), which CMake downloads if they're not installed. A downloaded libdatachannel needs OpenSSL |
 
