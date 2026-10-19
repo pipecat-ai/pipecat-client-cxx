@@ -1,16 +1,30 @@
 name: docs
 
+# Builds the API reference on every push to main and pull request. Run by hand
+# from the Actions tab, or by the release workflow, with a version tag, e.g.
+# v1.0.0, it builds the API reference of that tag and publishes it.
 on:
   push:
     branches:
       - main
-    tags:
-      - "v*"
   pull_request:
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to publish (e.g. v1.0.0)"
+        required: true
+        type: string
+  workflow_call:
+    inputs:
+      tag:
+        description: "Tag to publish (e.g. v1.0.0)"
+        required: true
+        type: string
 
+# Publishing a tag doesn't cancel, and isn't canceled by, builds of the same
+# branch.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.tag }}
   cancel-in-progress: true
 
 jobs:
@@ -25,6 +39,8 @@ jobs:
             cmake doxygen libcurl4-openssl-dev ninja-build nlohmann-json3-dev
 
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || '' }}
 
       # Fails on Doxygen warnings, e.g. broken references.
       - name: Build
@@ -36,16 +52,16 @@ jobs:
           cmake --build build --target docs
 
       - uses: actions/upload-pages-artifact@v5
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: inputs.tag
         with:
           path: build/docs/html
 
-  # Publishes the API reference to GitHub Pages for each release, served at
-  # docs-cxx.pipecat.ai. The custom domain is set in the repository's Pages
-  # settings, since Pages ignores CNAME files when deploying from Actions.
+  # Publishes the API reference to GitHub Pages, served at docs-cxx.pipecat.ai.
+  # The custom domain is set in the repository's Pages settings, since Pages
+  # ignores CNAME files when deploying from Actions.
   deploy:
     name: Publish API reference
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: inputs.tag
     needs: build
     runs-on: ubuntu-24.04
     permissions:

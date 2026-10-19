@@ -10,7 +10,7 @@ project(pipecat_voice_chat LANGUAGES CXX)
 
 # The example can use the transports the Pipecat client was installed with,
 # if their dependencies are found.
-find_package(pipecat 1.0 REQUIRED
+find_package(pipecat 1.2 REQUIRED
   OPTIONAL_COMPONENTS daily smallwebrtc websocket
 )
 if(NOT pipecat_daily_FOUND AND NOT pipecat_smallwebrtc_FOUND
