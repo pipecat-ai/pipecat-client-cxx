@@ -6,7 +6,8 @@ name: release
 # scripts/release-changelog.py, and it comes with a source tarball whose
 # checksum never changes, for FetchContent. A tag that doesn't exist, that
 # doesn't match the version in CMakeLists.txt, or whose version has no
-# changelog section, fails.
+# changelog section, fails. Then the docs workflow publishes the tag's API
+# reference.
 on:
   workflow_dispatch:
     inputs:
@@ -65,3 +66,14 @@ jobs:
             gh release create "$TAG" "$name.tar.gz" "$name.tar.gz.sha256" \
               --verify-tag --title "$TAG" --notes-file release-notes.md
           fi
+
+  docs:
+    name: API reference
+    needs: release
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/docs.yml
+    with:
+      tag: ${{ inputs.tag }}
