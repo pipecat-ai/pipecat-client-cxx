@@ -274,7 +274,8 @@ TEST(ServerData, Error) {
 TEST(ServerData, UserInput) {
     auto data = json::parse(R"({
         "text": "Hello", "input_type": "transcription", "final": true,
-        "timestamp": "2026-09-28T10:00:00", "user_id": "user"
+        "timestamp": "2026-09-28T10:00:00", "user_id": "user",
+        "speaker": {"label": "B", "number": 2}
     })")
                         .get<UserInputData>();
     EXPECT_EQ(data.text, "Hello");
@@ -283,6 +284,9 @@ TEST(ServerData, UserInput) {
     EXPECT_EQ(data.timestamp, "2026-09-28T10:00:00");
     EXPECT_EQ(data.user_id, "user");
     EXPECT_EQ(data.msg_id, std::nullopt);
+    ASSERT_TRUE(data.speaker.has_value());
+    EXPECT_EQ(data.speaker->label, "B");
+    EXPECT_EQ(data.speaker->number, 2);
 
     // Text sent with send_text(), from a transport that doesn't know who sent
     // it.
@@ -295,6 +299,7 @@ TEST(ServerData, UserInput) {
     EXPECT_EQ(data.user_id, std::nullopt);
     EXPECT_EQ(data.msg_id, "abc");
     EXPECT_TRUE(data.perception.empty());
+    EXPECT_FALSE(data.speaker.has_value());
 }
 
 TEST(ServerData, UserInputPerception) {
@@ -336,6 +341,16 @@ TEST(ServerData, STTRawText) {
     EXPECT_FALSE(data.final);
     EXPECT_EQ(data.timestamp, "2026-09-28T10:00:00");
     EXPECT_EQ(data.user_id, "user");
+    EXPECT_FALSE(data.speaker.has_value());
+
+    data = json::parse(R"({
+        "text": "Hello", "final": true, "timestamp": "2026-09-28T10:00:01",
+        "user_id": "user", "speaker": {"label": "S1", "number": 1}
+    })")
+                   .get<STTRawTextData>();
+    ASSERT_TRUE(data.speaker.has_value());
+    EXPECT_EQ(data.speaker->label, "S1");
+    EXPECT_EQ(data.speaker->number, 1);
 }
 
 TEST(ServerData, Text) {

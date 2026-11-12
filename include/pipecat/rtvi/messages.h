@@ -182,6 +182,15 @@ struct UserPerceptionSignal {
     std::optional<double> value;
 };
 
+/// Who said a transcription, if the bot's speech-to-text tells speakers apart.
+struct TranscriptionSpeaker {
+    /// The speech-to-text service's name for the speaker, e.g. "A" or "S1".
+    std::string label;
+    /// The speaker's place in the order speakers first spoke, starting at 1.
+    /// It reads the same whatever names the service uses.
+    int number = 0;
+};
+
 /// What the user said or typed.
 struct UserInputData {
     /// The words.
@@ -205,6 +214,10 @@ struct UserInputData {
     /// reads it. Interim transcriptions can have it too. Only from bots with
     /// expressive conversation (alpha).
     std::vector<UserPerceptionSignal> perception;
+    /// For a transcription, who said it, if the bot's speech-to-text tells
+    /// speakers apart. Unlike `user_id`, it tells apart people sharing one
+    /// microphone.
+    std::optional<TranscriptionSpeaker> speaker;
 };
 
 /// A transcription, as the bot's speech-to-text made it.
@@ -217,6 +230,9 @@ struct STTRawTextData {
     std::string timestamp;
     /// ID of the user who spoke.
     std::string user_id;
+    /// Who said it, if the bot's speech-to-text tells speakers apart. Unlike
+    /// `user_id`, it tells apart people sharing one microphone.
+    std::optional<TranscriptionSpeaker> speaker;
 };
 
 /// Some text.
@@ -420,6 +436,7 @@ void from_json(const nlohmann::json& j, BotReadyData& data);
 void from_json(const nlohmann::json& j, ErrorData& data);
 void from_json(const nlohmann::json& j, UserPerceptionLabel& data);
 void from_json(const nlohmann::json& j, UserPerceptionSignal& data);
+void from_json(const nlohmann::json& j, TranscriptionSpeaker& data);
 void from_json(const nlohmann::json& j, UserInputData& data);
 void from_json(const nlohmann::json& j, STTRawTextData& data);
 void from_json(const nlohmann::json& j, TextData& data);

@@ -300,6 +300,11 @@ void from_json(const json& j, UserPerceptionSignal& data) {
     data.value = optional_value<double>(j, "value");
 }
 
+void from_json(const json& j, TranscriptionSpeaker& data) {
+    data.label = value_or<std::string>(j, "label", "");
+    data.number = value_or(j, "number", 0);
+}
+
 void from_json(const json& j, UserInputData& data) {
     data.text = value_or<std::string>(j, "text", "");
     data.input_type = value_or<std::string>(j, "input_type", "");
@@ -309,6 +314,7 @@ void from_json(const json& j, UserInputData& data) {
     data.msg_id = optional_value<std::string>(j, "msg_id");
     data.perception =
             value_or<std::vector<UserPerceptionSignal>>(j, "perception", {});
+    data.speaker = optional_value<TranscriptionSpeaker>(j, "speaker");
 }
 
 void from_json(const json& j, STTRawTextData& data) {
@@ -316,6 +322,7 @@ void from_json(const json& j, STTRawTextData& data) {
     data.final = value_or(j, "final", false);
     data.timestamp = value_or<std::string>(j, "timestamp", "");
     data.user_id = value_or<std::string>(j, "user_id", "");
+    data.speaker = optional_value<TranscriptionSpeaker>(j, "speaker");
 }
 
 void from_json(const json& j, TextData& data) {
