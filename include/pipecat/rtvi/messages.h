@@ -29,7 +29,7 @@
 namespace pipecat::rtvi {
 
 /// The RTVI protocol version this library speaks.
-inline constexpr const char* PROTOCOL_VERSION = "2.2.0";
+inline constexpr const char* PROTOCOL_VERSION = "2.3.0";
 
 /// The label of every RTVI message.
 inline constexpr const char* MESSAGE_LABEL = "rtvi-ai";
@@ -163,6 +163,34 @@ struct ErrorData {
     bool fatal = false;
 };
 
+/// A label for how the user spoke, e.g. "frustrated", with how sure the bot is.
+struct UserPerceptionLabel {
+    /// The label, e.g. "frustrated".
+    std::string label;
+    /// How sure the bot is of the label, from 0 to 1.
+    double confidence = 0;
+};
+
+/// One thing about how the user spoke, e.g. their tone. The bot reads it
+/// either as labels or as a value.
+struct UserPerceptionSignal {
+    /// What the bot read, e.g. "tone" or "speech_rate".
+    std::string name;
+    /// The likeliest labels, likeliest first, if the bot reads it as labels.
+    std::vector<UserPerceptionLabel> labels;
+    /// The value, if the bot reads it as a value.
+    std::optional<double> value;
+};
+
+/// Who said a transcription, if the bot's speech-to-text tells speakers apart.
+struct TranscriptionSpeaker {
+    /// The speech-to-text service's name for the speaker, e.g. "A" or "S1".
+    std::string label;
+    /// The speaker's place in the order speakers first spoke, starting at 1.
+    /// It reads the same whatever names the service uses.
+    int number = 0;
+};
+
 /// What the user said or typed.
 struct UserInputData {
     /// The words.
@@ -182,6 +210,14 @@ struct UserInputData {
     std::optional<std::string> user_id;
     /// For chat, the ID PipecatClient::send_text() returned.
     std::optional<std::string> msg_id;
+    /// For a transcription, how the user said it, e.g. their tone, if the bot
+    /// reads it. Interim transcriptions can have it too. Only from bots with
+    /// expressive conversation (alpha).
+    std::vector<UserPerceptionSignal> perception;
+    /// For a transcription, who said it, if the bot's speech-to-text tells
+    /// speakers apart. Unlike `user_id`, it tells apart people sharing one
+    /// microphone.
+    std::optional<TranscriptionSpeaker> speaker;
 };
 
 /// A transcription, as the bot's speech-to-text made it.
@@ -194,6 +230,9 @@ struct STTRawTextData {
     std::string timestamp;
     /// ID of the user who spoke.
     std::string user_id;
+    /// Who said it, if the bot's speech-to-text tells speakers apart. Unlike
+    /// `user_id`, it tells apart people sharing one microphone.
+    std::optional<TranscriptionSpeaker> speaker;
 };
 
 /// Some text.
@@ -226,10 +265,15 @@ struct SpokenProgressData {
 struct BotOutputData {
     /// The text.
     std::string text;
-    /// What the text is, e.g. "sentence", "word", or "backchannel" for a short
-    /// acknowledgment the bot says while the user talks, like "Mm-hmm.". Bots
-    /// can have types of their own, like "code".
-    std::string text_type;
+    /// What kind of text it is, e.g. "sentence", "word", or "backchannel" for
+    /// a short acknowledgment the bot says while the user talks, like
+    /// "Mm-hmm.". Bots with expressive conversation (alpha) also send
+    /// "expression_sound" for a sound the bot makes, with its name as the
+    /// text, like "laugh", and "expression_pause" for a pause, with its length
+    /// in milliseconds as the text, like "500", each in a single "completed"
+    /// message once the bot makes it. Bots can have types of their own, like
+    /// "code".
+    std::string output_type;
     /// ID shared by updates of a text.
     std::optional<int64_t> segment_id;
     /// Whether the bot will speak it.
@@ -242,6 +286,11 @@ struct BotOutputData {
     std::optional<std::string> spoken_status;
     /// How much of the text the bot has spoken. Only for text it speaks.
     std::optional<SpokenProgressData> spoken_progress;
+    /// How the bot speaks the words it just spoke, e.g. {"warm", "emphasis"},
+    /// or empty in its usual voice. It can change from word to word, so it
+    /// comes as the bot speaks, not with "new". Only from bots with
+    /// expressive conversation (alpha).
+    std::optional<std::vector<std::string>> delivery;
 };
 
 /// A single measurement.
@@ -385,6 +434,9 @@ void from_json(const nlohmann::json& j, ClientMessageData& data);
 void from_json(const nlohmann::json& j, BotCapabilities& data);
 void from_json(const nlohmann::json& j, BotReadyData& data);
 void from_json(const nlohmann::json& j, ErrorData& data);
+void from_json(const nlohmann::json& j, UserPerceptionLabel& data);
+void from_json(const nlohmann::json& j, UserPerceptionSignal& data);
+void from_json(const nlohmann::json& j, TranscriptionSpeaker& data);
 void from_json(const nlohmann::json& j, UserInputData& data);
 void from_json(const nlohmann::json& j, STTRawTextData& data);
 void from_json(const nlohmann::json& j, TextData& data);

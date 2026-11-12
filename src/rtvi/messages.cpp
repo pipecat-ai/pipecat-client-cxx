@@ -289,6 +289,22 @@ void from_json(const json& j, ErrorData& data) {
     data.fatal = value_or(j, "fatal", false);
 }
 
+void from_json(const json& j, UserPerceptionLabel& data) {
+    data.label = value_or<std::string>(j, "label", "");
+    data.confidence = value_or(j, "confidence", 0.0);
+}
+
+void from_json(const json& j, UserPerceptionSignal& data) {
+    data.name = value_or<std::string>(j, "name", "");
+    data.labels = value_or<std::vector<UserPerceptionLabel>>(j, "labels", {});
+    data.value = optional_value<double>(j, "value");
+}
+
+void from_json(const json& j, TranscriptionSpeaker& data) {
+    data.label = value_or<std::string>(j, "label", "");
+    data.number = value_or(j, "number", 0);
+}
+
 void from_json(const json& j, UserInputData& data) {
     data.text = value_or<std::string>(j, "text", "");
     data.input_type = value_or<std::string>(j, "input_type", "");
@@ -296,6 +312,9 @@ void from_json(const json& j, UserInputData& data) {
     data.timestamp = value_or<std::string>(j, "timestamp", "");
     data.user_id = optional_value<std::string>(j, "user_id");
     data.msg_id = optional_value<std::string>(j, "msg_id");
+    data.perception =
+            value_or<std::vector<UserPerceptionSignal>>(j, "perception", {});
+    data.speaker = optional_value<TranscriptionSpeaker>(j, "speaker");
 }
 
 void from_json(const json& j, STTRawTextData& data) {
@@ -303,6 +322,7 @@ void from_json(const json& j, STTRawTextData& data) {
     data.final = value_or(j, "final", false);
     data.timestamp = value_or<std::string>(j, "timestamp", "");
     data.user_id = value_or<std::string>(j, "user_id", "");
+    data.speaker = optional_value<TranscriptionSpeaker>(j, "speaker");
 }
 
 void from_json(const json& j, TextData& data) {
@@ -316,15 +336,18 @@ void from_json(const json& j, SpokenProgressData& data) {
 
 void from_json(const json& j, BotOutputData& data) {
     data.text = value_or<std::string>(j, "text", "");
-    // Bots older than RTVI 2.2 only send aggregated_by.
-    data.text_type = value_or<std::string>(
+    // Pipecat 1.13 only sends text_type and aggregated_by, and older bots only
+    // aggregated_by.
+    auto older_type = value_or<std::string>(
             j, "text_type", value_or<std::string>(j, "aggregated_by", "")
     );
+    data.output_type = value_or<std::string>(j, "output_type", older_type);
     data.segment_id = optional_value<int64_t>(j, "segment_id");
     data.will_be_spoken = optional_value<bool>(j, "will_be_spoken");
     data.spoken_status = optional_value<std::string>(j, "spoken_status");
     data.spoken_progress =
             optional_value<SpokenProgressData>(j, "spoken_progress");
+    data.delivery = optional_value<std::vector<std::string>>(j, "delivery");
 }
 
 void from_json(const json& j, MetricData& data) {

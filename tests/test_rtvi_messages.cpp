@@ -125,7 +125,7 @@ TEST(Message, ClientReady) {
     EXPECT_EQ(message.type, "client-ready");
     EXPECT_EQ(
             message.data,
-            json::parse(R"({"version": "2.2.0", "about": {"library": "test"}})")
+            json::parse(R"({"version": "2.3.0", "about": {"library": "test"}})")
     );
 
     about.library_version = "1.0.0";
@@ -274,7 +274,8 @@ TEST(ServerData, Error) {
 TEST(ServerData, UserInput) {
     auto data = json::parse(R"({
         "text": "Hello", "input_type": "transcription", "final": true,
-        "timestamp": "2026-09-28T10:00:00", "user_id": "user"
+        "timestamp": "2026-09-28T10:00:00", "user_id": "user",
+        "speaker": {"label": "B", "number": 2}
     })")
                         .get<UserInputData>();
     EXPECT_EQ(data.text, "Hello");
@@ -283,6 +284,9 @@ TEST(ServerData, UserInput) {
     EXPECT_EQ(data.timestamp, "2026-09-28T10:00:00");
     EXPECT_EQ(data.user_id, "user");
     EXPECT_EQ(data.msg_id, std::nullopt);
+    ASSERT_TRUE(data.speaker.has_value());
+    EXPECT_EQ(data.speaker->label, "B");
+    EXPECT_EQ(data.speaker->number, 2);
 
     // Text sent with send_text(), from a transport that doesn't know who sent
     // it.
@@ -294,6 +298,37 @@ TEST(ServerData, UserInput) {
     EXPECT_EQ(data.input_type, "chat");
     EXPECT_EQ(data.user_id, std::nullopt);
     EXPECT_EQ(data.msg_id, "abc");
+    EXPECT_TRUE(data.perception.empty());
+    EXPECT_FALSE(data.speaker.has_value());
+}
+
+TEST(ServerData, UserInputPerception) {
+    auto data = json::parse(R"({
+        "text": "Fine.", "input_type": "transcription", "final": true,
+        "timestamp": "2026-11-12T10:00:00", "user_id": "user",
+        "perception": [
+            {
+                "name": "tone",
+                "labels": [
+                    {"label": "frustrated", "confidence": 0.75},
+                    {"label": "neutral", "confidence": 0.25}
+                ],
+                "value": null
+            },
+            {"name": "speech_rate", "labels": [], "value": 4.5}
+        ]
+    })")
+                        .get<UserInputData>();
+    ASSERT_EQ(data.perception.size(), 2u);
+    EXPECT_EQ(data.perception[0].name, "tone");
+    ASSERT_EQ(data.perception[0].labels.size(), 2u);
+    EXPECT_EQ(data.perception[0].labels[0].label, "frustrated");
+    EXPECT_DOUBLE_EQ(data.perception[0].labels[0].confidence, 0.75);
+    EXPECT_EQ(data.perception[0].labels[1].label, "neutral");
+    EXPECT_EQ(data.perception[0].value, std::nullopt);
+    EXPECT_EQ(data.perception[1].name, "speech_rate");
+    EXPECT_TRUE(data.perception[1].labels.empty());
+    EXPECT_EQ(data.perception[1].value, 4.5);
 }
 
 TEST(ServerData, STTRawText) {
@@ -306,6 +341,16 @@ TEST(ServerData, STTRawText) {
     EXPECT_FALSE(data.final);
     EXPECT_EQ(data.timestamp, "2026-09-28T10:00:00");
     EXPECT_EQ(data.user_id, "user");
+    EXPECT_FALSE(data.speaker.has_value());
+
+    data = json::parse(R"({
+        "text": "Hello", "final": true, "timestamp": "2026-09-28T10:00:01",
+        "user_id": "user", "speaker": {"label": "S1", "number": 1}
+    })")
+                   .get<STTRawTextData>();
+    ASSERT_TRUE(data.speaker.has_value());
+    EXPECT_EQ(data.speaker->label, "S1");
+    EXPECT_EQ(data.speaker->number, 1);
 }
 
 TEST(ServerData, Text) {
@@ -319,6 +364,7 @@ TEST(ServerData, Text) {
 TEST(ServerData, BotOutput) {
     auto data = json::parse(R"({
         "text": "Hello there.",
+        "output_type": "sentence",
         "text_type": "sentence",
         "aggregated_by": "sentence",
         "segment_id": 3,
@@ -327,37 +373,47 @@ TEST(ServerData, BotOutput) {
         "spoken_progress": {
             "accumulated_text": "Hello",
             "remaining_text": " there."
-        }
+        },
+        "delivery": ["warm", "emphasis"]
     })")
                         .get<BotOutputData>();
     EXPECT_EQ(data.text, "Hello there.");
-    EXPECT_EQ(data.text_type, "sentence");
+    EXPECT_EQ(data.output_type, "sentence");
     EXPECT_EQ(data.segment_id, 3);
     EXPECT_EQ(data.will_be_spoken, true);
     EXPECT_EQ(data.spoken_status, "in-progress");
     ASSERT_TRUE(data.spoken_progress.has_value());
     EXPECT_EQ(data.spoken_progress->accumulated_text, "Hello");
     EXPECT_EQ(data.spoken_progress->remaining_text, " there.");
+    EXPECT_EQ(data.delivery, (std::vector<std::string> {"warm", "emphasis"}));
 }
 
 TEST(ServerData, BotOutputMinimal) {
     auto data = json::parse(R"({
-        "text": "Hi", "text_type": "word", "segment_id": null
+        "text": "Hi", "output_type": "word", "segment_id": null
     })")
                         .get<BotOutputData>();
     EXPECT_EQ(data.text, "Hi");
-    EXPECT_EQ(data.text_type, "word");
+    EXPECT_EQ(data.output_type, "word");
     EXPECT_EQ(data.segment_id, std::nullopt);
     EXPECT_EQ(data.will_be_spoken, std::nullopt);
     EXPECT_EQ(data.spoken_status, std::nullopt);
     EXPECT_FALSE(data.spoken_progress.has_value());
+    EXPECT_EQ(data.delivery, std::nullopt);
 }
 
 TEST(ServerData, BotOutputFromOlderBots) {
-    // Bots older than RTVI 2.2 only send aggregated_by.
-    auto data = json::parse(R"({"text": "Hi", "aggregated_by": "sentence"})")
+    // Pipecat 1.13 only sends text_type and aggregated_by.
+    auto data = json::parse(R"({
+        "text": "Hi", "text_type": "sentence", "aggregated_by": "sentence"
+    })")
                         .get<BotOutputData>();
-    EXPECT_EQ(data.text_type, "sentence");
+    EXPECT_EQ(data.output_type, "sentence");
+
+    // Older bots only send aggregated_by.
+    data = json::parse(R"({"text": "Hi", "aggregated_by": "sentence"})")
+                   .get<BotOutputData>();
+    EXPECT_EQ(data.output_type, "sentence");
 }
 
 TEST(ServerData, Metrics) {

@@ -149,7 +149,7 @@ class Recorder : public pipecat::PipecatClientCallbacks {
         record("user-llm-text:" + data.text);
     }
     void on_bot_output(const pipecat::rtvi::BotOutputData& data) override {
-        record("bot-output:" + data.text + ":" + data.text_type);
+        record("bot-output:" + data.text + ":" + data.output_type);
     }
 
     // Speech-to-text

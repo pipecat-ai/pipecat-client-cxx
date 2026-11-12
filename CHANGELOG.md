@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `rtvi::BotOutputData::delivery` says how the bot speaks the words it just
+  spoke, e.g. `{"warm", "emphasis"}`, as it speaks them. Bots on Pipecat 1.15
+  or newer send it with expressive conversation (alpha).
+
+- `rtvi::UserInputData::perception` says how the user said a transcription,
+  e.g. their tone, as `rtvi::UserPerceptionSignal`s, each read as labels, with
+  how sure the bot is of them, or as a value. Bots on Pipecat 1.15 or newer
+  send it with expressive conversation (alpha).
+
+- `rtvi::UserInputData::speaker` and `rtvi::STTRawTextData::speaker` say who
+  said a transcription, as a `rtvi::TranscriptionSpeaker`, if the bot's
+  speech-to-text tells speakers apart. Unlike `user_id`, it tells apart people
+  sharing one microphone. Bots on Pipecat 1.16 or newer send it.
+
+### Changed
+
+- The client speaks RTVI 2.3, so bots on Pipecat 1.15 or newer with
+  expressive conversation (alpha) also send it the sounds and pauses the bot
+  makes, like a laugh, to `on_bot_output()` with `output_type`
+  `"expression_sound"` or `"expression_pause"`.
+
+- `rtvi::BotOutputData::text_type` is now `output_type`, as Pipecat 1.14
+  calls it. It's filled from `text_type` or `aggregated_by` for older bots.
+
 ## [1.2.0] - 2026-10-18
 
 ### Added

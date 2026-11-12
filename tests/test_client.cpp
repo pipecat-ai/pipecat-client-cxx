@@ -42,7 +42,7 @@ TEST(PipecatClient, ConnectWaitsForBotReady) {
 
     auto data = client->connect({{"room_url", "https://example.com/room"}});
 
-    EXPECT_EQ(data.version, "2.2.0");
+    EXPECT_EQ(data.version, "2.3.0");
     EXPECT_EQ(client->state(), TransportState::Ready);
     EXPECT_TRUE(client->connected());
     EXPECT_EQ(
@@ -53,10 +53,10 @@ TEST(PipecatClient, ConnectWaitsForBotReady) {
     auto ready_message = transport->ready_message();
     ASSERT_TRUE(ready_message.has_value());
     EXPECT_EQ(ready_message->type, "client-ready");
-    EXPECT_EQ(ready_message->data["version"], "2.2.0");
+    EXPECT_EQ(ready_message->data["version"], "2.3.0");
     EXPECT_EQ(ready_message->data["about"]["library"], "pipecat-client-cxx");
 
-    ASSERT_TRUE(recorder.wait_for("bot-ready:2.2.0"));
+    ASSERT_TRUE(recorder.wait_for("bot-ready:2.3.0"));
     EXPECT_EQ(
             recorder.events(),
             (Events {
@@ -66,7 +66,7 @@ TEST(PipecatClient, ConnectWaitsForBotReady) {
                     "state:connected",
                     "connected",
                     "state:ready",
-                    "bot-ready:2.2.0",
+                    "bot-ready:2.3.0",
             })
     );
 }
@@ -440,7 +440,8 @@ TEST(PipecatClient, DispatchesMessages) {
             rtvi_message("bot-tts-started"),
             rtvi_message("tts-raw-text", {{"text", "Hello"}}),
             rtvi_message(
-                    "bot-output", {{"text", "Hello"}, {"text_type", "sentence"}}
+                    "bot-output",
+                    {{"text", "Hello"}, {"output_type", "sentence"}}
             ),
             rtvi_message("bot-tts-stopped"),
             rtvi_message("bot-stopped-speaking"),
