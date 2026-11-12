@@ -319,6 +319,7 @@ TEST(ServerData, Text) {
 TEST(ServerData, BotOutput) {
     auto data = json::parse(R"({
         "text": "Hello there.",
+        "output_type": "sentence",
         "text_type": "sentence",
         "aggregated_by": "sentence",
         "segment_id": 3,
@@ -331,7 +332,7 @@ TEST(ServerData, BotOutput) {
     })")
                         .get<BotOutputData>();
     EXPECT_EQ(data.text, "Hello there.");
-    EXPECT_EQ(data.text_type, "sentence");
+    EXPECT_EQ(data.output_type, "sentence");
     EXPECT_EQ(data.segment_id, 3);
     EXPECT_EQ(data.will_be_spoken, true);
     EXPECT_EQ(data.spoken_status, "in-progress");
@@ -342,11 +343,11 @@ TEST(ServerData, BotOutput) {
 
 TEST(ServerData, BotOutputMinimal) {
     auto data = json::parse(R"({
-        "text": "Hi", "text_type": "word", "segment_id": null
+        "text": "Hi", "output_type": "word", "segment_id": null
     })")
                         .get<BotOutputData>();
     EXPECT_EQ(data.text, "Hi");
-    EXPECT_EQ(data.text_type, "word");
+    EXPECT_EQ(data.output_type, "word");
     EXPECT_EQ(data.segment_id, std::nullopt);
     EXPECT_EQ(data.will_be_spoken, std::nullopt);
     EXPECT_EQ(data.spoken_status, std::nullopt);
@@ -354,10 +355,17 @@ TEST(ServerData, BotOutputMinimal) {
 }
 
 TEST(ServerData, BotOutputFromOlderBots) {
-    // Bots older than RTVI 2.2 only send aggregated_by.
-    auto data = json::parse(R"({"text": "Hi", "aggregated_by": "sentence"})")
+    // Pipecat 1.13 only sends text_type and aggregated_by.
+    auto data = json::parse(R"({
+        "text": "Hi", "text_type": "sentence", "aggregated_by": "sentence"
+    })")
                         .get<BotOutputData>();
-    EXPECT_EQ(data.text_type, "sentence");
+    EXPECT_EQ(data.output_type, "sentence");
+
+    // Older bots only send aggregated_by.
+    data = json::parse(R"({"text": "Hi", "aggregated_by": "sentence"})")
+                   .get<BotOutputData>();
+    EXPECT_EQ(data.output_type, "sentence");
 }
 
 TEST(ServerData, Metrics) {

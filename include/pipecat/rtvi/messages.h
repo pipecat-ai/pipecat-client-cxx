@@ -226,10 +226,10 @@ struct SpokenProgressData {
 struct BotOutputData {
     /// The text.
     std::string text;
-    /// What the text is, e.g. "sentence", "word", or "backchannel" for a short
-    /// acknowledgment the bot says while the user talks, like "Mm-hmm.". Bots
-    /// can have types of their own, like "code".
-    std::string text_type;
+    /// What kind of text it is, e.g. "sentence", "word", or "backchannel" for
+    /// a short acknowledgment the bot says while the user talks, like
+    /// "Mm-hmm.". Bots can have types of their own, like "code".
+    std::string output_type;
     /// ID shared by updates of a text.
     std::optional<int64_t> segment_id;
     /// Whether the bot will speak it.
