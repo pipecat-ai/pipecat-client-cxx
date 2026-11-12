@@ -289,6 +289,17 @@ void from_json(const json& j, ErrorData& data) {
     data.fatal = value_or(j, "fatal", false);
 }
 
+void from_json(const json& j, UserPerceptionLabel& data) {
+    data.label = value_or<std::string>(j, "label", "");
+    data.confidence = value_or(j, "confidence", 0.0);
+}
+
+void from_json(const json& j, UserPerceptionSignal& data) {
+    data.name = value_or<std::string>(j, "name", "");
+    data.labels = value_or<std::vector<UserPerceptionLabel>>(j, "labels", {});
+    data.value = optional_value<double>(j, "value");
+}
+
 void from_json(const json& j, UserInputData& data) {
     data.text = value_or<std::string>(j, "text", "");
     data.input_type = value_or<std::string>(j, "input_type", "");
@@ -296,6 +307,8 @@ void from_json(const json& j, UserInputData& data) {
     data.timestamp = value_or<std::string>(j, "timestamp", "");
     data.user_id = optional_value<std::string>(j, "user_id");
     data.msg_id = optional_value<std::string>(j, "msg_id");
+    data.perception =
+            value_or<std::vector<UserPerceptionSignal>>(j, "perception", {});
 }
 
 void from_json(const json& j, STTRawTextData& data) {

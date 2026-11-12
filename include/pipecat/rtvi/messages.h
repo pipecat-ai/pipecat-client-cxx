@@ -163,6 +163,25 @@ struct ErrorData {
     bool fatal = false;
 };
 
+/// A label for how the user spoke, e.g. "frustrated", with how sure the bot is.
+struct UserPerceptionLabel {
+    /// The label, e.g. "frustrated".
+    std::string label;
+    /// How sure the bot is of the label, from 0 to 1.
+    double confidence = 0;
+};
+
+/// One thing about how the user spoke, e.g. their tone. The bot reads it
+/// either as labels or as a value.
+struct UserPerceptionSignal {
+    /// What the bot read, e.g. "tone" or "speech_rate".
+    std::string name;
+    /// The likeliest labels, likeliest first, if the bot reads it as labels.
+    std::vector<UserPerceptionLabel> labels;
+    /// The value, if the bot reads it as a value.
+    std::optional<double> value;
+};
+
 /// What the user said or typed.
 struct UserInputData {
     /// The words.
@@ -182,6 +201,10 @@ struct UserInputData {
     std::optional<std::string> user_id;
     /// For chat, the ID PipecatClient::send_text() returned.
     std::optional<std::string> msg_id;
+    /// For a transcription, how the user said it, e.g. their tone, if the bot
+    /// reads it. Interim transcriptions can have it too. Only from bots with
+    /// expressive conversation (alpha).
+    std::vector<UserPerceptionSignal> perception;
 };
 
 /// A transcription, as the bot's speech-to-text made it.
@@ -395,6 +418,8 @@ void from_json(const nlohmann::json& j, ClientMessageData& data);
 void from_json(const nlohmann::json& j, BotCapabilities& data);
 void from_json(const nlohmann::json& j, BotReadyData& data);
 void from_json(const nlohmann::json& j, ErrorData& data);
+void from_json(const nlohmann::json& j, UserPerceptionLabel& data);
+void from_json(const nlohmann::json& j, UserPerceptionSignal& data);
 void from_json(const nlohmann::json& j, UserInputData& data);
 void from_json(const nlohmann::json& j, STTRawTextData& data);
 void from_json(const nlohmann::json& j, TextData& data);

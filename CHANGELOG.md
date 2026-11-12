@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   spoke, e.g. `{"warm", "emphasis"}`, as it speaks them. Bots on Pipecat 1.15
   or newer send it with expressive conversation (alpha).
 
+- `rtvi::UserInputData::perception` says how the user said a transcription,
+  e.g. their tone, as `rtvi::UserPerceptionSignal`s, each read as labels, with
+  how sure the bot is of them, or as a value. Bots on Pipecat 1.15 or newer
+  send it with expressive conversation (alpha).
+
 ### Changed
 
 - The client speaks RTVI 2.3, so bots on Pipecat 1.15 or newer with

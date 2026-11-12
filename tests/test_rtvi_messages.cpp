@@ -294,6 +294,36 @@ TEST(ServerData, UserInput) {
     EXPECT_EQ(data.input_type, "chat");
     EXPECT_EQ(data.user_id, std::nullopt);
     EXPECT_EQ(data.msg_id, "abc");
+    EXPECT_TRUE(data.perception.empty());
+}
+
+TEST(ServerData, UserInputPerception) {
+    auto data = json::parse(R"({
+        "text": "Fine.", "input_type": "transcription", "final": true,
+        "timestamp": "2026-11-12T10:00:00", "user_id": "user",
+        "perception": [
+            {
+                "name": "tone",
+                "labels": [
+                    {"label": "frustrated", "confidence": 0.75},
+                    {"label": "neutral", "confidence": 0.25}
+                ],
+                "value": null
+            },
+            {"name": "speech_rate", "labels": [], "value": 4.5}
+        ]
+    })")
+                        .get<UserInputData>();
+    ASSERT_EQ(data.perception.size(), 2u);
+    EXPECT_EQ(data.perception[0].name, "tone");
+    ASSERT_EQ(data.perception[0].labels.size(), 2u);
+    EXPECT_EQ(data.perception[0].labels[0].label, "frustrated");
+    EXPECT_DOUBLE_EQ(data.perception[0].labels[0].confidence, 0.75);
+    EXPECT_EQ(data.perception[0].labels[1].label, "neutral");
+    EXPECT_EQ(data.perception[0].value, std::nullopt);
+    EXPECT_EQ(data.perception[1].name, "speech_rate");
+    EXPECT_TRUE(data.perception[1].labels.empty());
+    EXPECT_EQ(data.perception[1].value, 4.5);
 }
 
 TEST(ServerData, STTRawText) {
