@@ -327,6 +327,7 @@ void from_json(const json& j, BotOutputData& data) {
     data.spoken_status = optional_value<std::string>(j, "spoken_status");
     data.spoken_progress =
             optional_value<SpokenProgressData>(j, "spoken_progress");
+    data.delivery = optional_value<std::vector<std::string>>(j, "delivery");
 }
 
 void from_json(const json& j, MetricData& data) {

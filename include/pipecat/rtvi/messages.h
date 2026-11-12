@@ -29,7 +29,7 @@
 namespace pipecat::rtvi {
 
 /// The RTVI protocol version this library speaks.
-inline constexpr const char* PROTOCOL_VERSION = "2.2.0";
+inline constexpr const char* PROTOCOL_VERSION = "2.3.0";
 
 /// The label of every RTVI message.
 inline constexpr const char* MESSAGE_LABEL = "rtvi-ai";
@@ -228,7 +228,12 @@ struct BotOutputData {
     std::string text;
     /// What kind of text it is, e.g. "sentence", "word", or "backchannel" for
     /// a short acknowledgment the bot says while the user talks, like
-    /// "Mm-hmm.". Bots can have types of their own, like "code".
+    /// "Mm-hmm.". Bots with expressive conversation (alpha) also send
+    /// "expression_sound" for a sound the bot makes, with its name as the
+    /// text, like "laugh", and "expression_pause" for a pause, with its length
+    /// in milliseconds as the text, like "500", each in a single "completed"
+    /// message once the bot makes it. Bots can have types of their own, like
+    /// "code".
     std::string output_type;
     /// ID shared by updates of a text.
     std::optional<int64_t> segment_id;
@@ -242,6 +247,11 @@ struct BotOutputData {
     std::optional<std::string> spoken_status;
     /// How much of the text the bot has spoken. Only for text it speaks.
     std::optional<SpokenProgressData> spoken_progress;
+    /// How the bot speaks the words it just spoke, e.g. {"warm", "emphasis"},
+    /// or empty in its usual voice. It can change from word to word, so it
+    /// comes as the bot speaks, not with "new". Only from bots with
+    /// expressive conversation (alpha).
+    std::optional<std::vector<std::string>> delivery;
 };
 
 /// A single measurement.

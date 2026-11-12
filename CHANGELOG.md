@@ -7,7 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `rtvi::BotOutputData::delivery` says how the bot speaks the words it just
+  spoke, e.g. `{"warm", "emphasis"}`, as it speaks them. Bots on Pipecat 1.15
+  or newer send it with expressive conversation (alpha).
+
 ### Changed
+
+- The client speaks RTVI 2.3, so bots on Pipecat 1.15 or newer with
+  expressive conversation (alpha) also send it the sounds and pauses the bot
+  makes, like a laugh, to `on_bot_output()` with `output_type`
+  `"expression_sound"` or `"expression_pause"`.
 
 - `rtvi::BotOutputData::text_type` is now `output_type`, as Pipecat 1.14
   calls it. It's filled from `text_type` or `aggregated_by` for older bots.

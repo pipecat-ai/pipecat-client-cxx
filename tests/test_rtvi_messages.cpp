@@ -125,7 +125,7 @@ TEST(Message, ClientReady) {
     EXPECT_EQ(message.type, "client-ready");
     EXPECT_EQ(
             message.data,
-            json::parse(R"({"version": "2.2.0", "about": {"library": "test"}})")
+            json::parse(R"({"version": "2.3.0", "about": {"library": "test"}})")
     );
 
     about.library_version = "1.0.0";
@@ -328,7 +328,8 @@ TEST(ServerData, BotOutput) {
         "spoken_progress": {
             "accumulated_text": "Hello",
             "remaining_text": " there."
-        }
+        },
+        "delivery": ["warm", "emphasis"]
     })")
                         .get<BotOutputData>();
     EXPECT_EQ(data.text, "Hello there.");
@@ -339,6 +340,7 @@ TEST(ServerData, BotOutput) {
     ASSERT_TRUE(data.spoken_progress.has_value());
     EXPECT_EQ(data.spoken_progress->accumulated_text, "Hello");
     EXPECT_EQ(data.spoken_progress->remaining_text, " there.");
+    EXPECT_EQ(data.delivery, (std::vector<std::string> {"warm", "emphasis"}));
 }
 
 TEST(ServerData, BotOutputMinimal) {
@@ -352,6 +354,7 @@ TEST(ServerData, BotOutputMinimal) {
     EXPECT_EQ(data.will_be_spoken, std::nullopt);
     EXPECT_EQ(data.spoken_status, std::nullopt);
     EXPECT_FALSE(data.spoken_progress.has_value());
+    EXPECT_EQ(data.delivery, std::nullopt);
 }
 
 TEST(ServerData, BotOutputFromOlderBots) {
