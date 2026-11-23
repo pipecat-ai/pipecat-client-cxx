@@ -138,6 +138,18 @@ const char* to_string(MessageType type) {
         return "llm-function-call-stopped";
     case MessageType::FlowNodeEntered:
         return "flow-node-entered";
+    case MessageType::VADUserStartedSpeaking:
+        return "vad-user-started-speaking";
+    case MessageType::VADUserStoppedSpeaking:
+        return "vad-user-stopped-speaking";
+    case MessageType::UserAudioLevel:
+        return "user-audio-level";
+    case MessageType::BotAudioLevel:
+        return "bot-audio-level";
+    case MessageType::SystemLog:
+        return "system-log";
+    case MessageType::BotLLMMarker:
+        return "bot-llm-marker";
     }
     return "";
 }
@@ -329,6 +341,17 @@ void from_json(const json& j, STTRawTextData& data) {
 
 void from_json(const json& j, TextData& data) {
     data.text = value_or<std::string>(j, "text", "");
+}
+
+void from_json(const json& j, AudioLevelData& data) {
+    data.value = value_or(j, "value", 0.0);
+}
+
+void from_json(const json& j, BotLLMMarkerData& data) {
+    data.text = value_or<std::string>(j, "text", "");
+    data.kind = optional_value<std::string>(j, "kind");
+    data.raw = value_or<std::string>(j, "raw", "");
+    data.markers = value_or<std::vector<std::string>>(j, "markers", {});
 }
 
 void from_json(const json& j, SpokenProgressData& data) {

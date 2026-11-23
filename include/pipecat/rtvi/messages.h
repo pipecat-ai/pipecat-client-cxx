@@ -73,6 +73,12 @@ enum class MessageType {
     LLMFunctionCallInProgress,  ///< A function call is running.
     LLMFunctionCallStopped,     ///< A function call finished.
     FlowNodeEntered,            ///< A conversation flow entered a node.
+    VADUserStartedSpeaking,     ///< The bot heard the user's voice start.
+    VADUserStoppedSpeaking,     ///< The bot heard the user's voice stop.
+    UserAudioLevel,             ///< How loud the user's audio is.
+    BotAudioLevel,              ///< How loud the bot's audio is.
+    SystemLog,                  ///< A line of the bot's log.
+    BotLLMMarker,               ///< The marker the bot's LLM put in a response.
 };
 
 /// The RTVI name of a message type, e.g. "bot-ready".
@@ -250,6 +256,30 @@ using LLMRawTextData = TextData;
 
 /// Text the bot's text-to-speech speaks, as it speaks it.
 using TTSRawTextData = TextData;
+
+/// A line of the bot's log.
+using SystemLogData = TextData;
+
+/// How loud the user's or the bot's audio is.
+struct AudioLevelData {
+    /// The level, from 0 (quiet) to 1 (loud).
+    double value = 0;
+};
+
+/// The marker the bot's LLM put in a response, outside the text it speaks,
+/// e.g. one saying whether the user's turn was complete.
+struct BotLLMMarkerData {
+    /// The marker, as the LLM wrote it. Empty if the response had none.
+    std::string text;
+    /// What the marker means, e.g. "complete", "short" or "long" for whether
+    /// the user's turn was complete, or "silent" for a reply the bot left
+    /// unspoken. std::nullopt if the bot doesn't know.
+    std::optional<std::string> kind;
+    /// The whole response, as the LLM wrote it, markers included.
+    std::string raw;
+    /// Every marker the bot knows.
+    std::vector<std::string> markers;
+};
 
 /// How much of a text the bot has spoken.
 struct SpokenProgressData {
@@ -533,6 +563,8 @@ void from_json(const nlohmann::json& j, TranscriptionSpeaker& data);
 void from_json(const nlohmann::json& j, UserInputData& data);
 void from_json(const nlohmann::json& j, STTRawTextData& data);
 void from_json(const nlohmann::json& j, TextData& data);
+void from_json(const nlohmann::json& j, AudioLevelData& data);
+void from_json(const nlohmann::json& j, BotLLMMarkerData& data);
 void from_json(const nlohmann::json& j, SpokenProgressData& data);
 void from_json(const nlohmann::json& j, BotOutputData& data);
 void from_json(const nlohmann::json& j, MetricData& data);

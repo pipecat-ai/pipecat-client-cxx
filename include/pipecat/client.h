@@ -97,6 +97,10 @@ class PipecatClientCallbacks {
     /// The bot sent performance metrics.
     virtual void on_metrics(const rtvi::MetricsData& /* data */) {}
 
+    /// A line of the bot's log, for debugging. Bots send it only if they're
+    /// set up to.
+    virtual void on_system_log(const rtvi::SystemLogData& /* data */) {}
+
     /// The bot sent a message the client doesn't handle, e.g. a newer type of
     /// message.
     virtual void on_unhandled_message(const rtvi::Message& /* message */) {}
@@ -111,6 +115,16 @@ class PipecatClientCallbacks {
 
     /// The user stopped speaking.
     virtual void on_user_stopped_speaking() {}
+
+    /// The bot heard the user's voice start, with voice activity detection.
+    /// It reacts to any voice, sooner than on_user_started_speaking(), which
+    /// comes once the bot decides the user's turn started. Bots on Pipecat 1.4
+    /// or newer send it only if they're set up to.
+    virtual void on_vad_user_started_speaking() {}
+
+    /// The bot heard the user's voice stop, with voice activity detection.
+    /// Bots on Pipecat 1.4 or newer send it only if they're set up to.
+    virtual void on_vad_user_stopped_speaking() {}
 
     /// The bot started speaking.
     virtual void on_bot_started_speaking() {}
@@ -128,6 +142,16 @@ class PipecatClientCallbacks {
 
     /// The bot stopped ignoring user audio.
     virtual void on_user_mute_stopped() {}
+
+    /// How loud the user's audio is, e.g. to show a level meter. Comes
+    /// regularly while the bot receives the user's audio. Bots send it only if
+    /// they're set up to.
+    virtual void on_user_audio_level(const rtvi::AudioLevelData& /* data */) {}
+
+    /// How loud the bot's audio is, e.g. to animate the bot as it speaks.
+    /// Comes regularly while the bot makes audio. Bots send it only if they're
+    /// set up to.
+    virtual void on_bot_audio_level(const rtvi::AudioLevelData& /* data */) {}
 
     /// @}
 
@@ -174,6 +198,12 @@ class PipecatClientCallbacks {
     virtual void on_bot_llm_search_response(
             const rtvi::BotLLMSearchResponseData& /* data */
     ) {}
+
+    /// The marker the bot's LLM put in a response, outside the text it speaks,
+    /// e.g. one saying whether the user's turn was complete. Comes once a
+    /// response ends, for testing and debugging. Bots on Pipecat 1.11 or newer
+    /// send it only if they're set up to.
+    virtual void on_bot_llm_marker(const rtvi::BotLLMMarkerData& /* data */) {}
 
     /// @}
 

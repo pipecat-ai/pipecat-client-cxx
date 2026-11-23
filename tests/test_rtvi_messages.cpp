@@ -56,6 +56,12 @@ TEST(MessageType, RoundTripsAllTypes) {
              "llm-function-call-in-progress"},
             {MessageType::LLMFunctionCallStopped, "llm-function-call-stopped"},
             {MessageType::FlowNodeEntered, "flow-node-entered"},
+            {MessageType::VADUserStartedSpeaking, "vad-user-started-speaking"},
+            {MessageType::VADUserStoppedSpeaking, "vad-user-stopped-speaking"},
+            {MessageType::UserAudioLevel, "user-audio-level"},
+            {MessageType::BotAudioLevel, "bot-audio-level"},
+            {MessageType::SystemLog, "system-log"},
+            {MessageType::BotLLMMarker, "bot-llm-marker"},
     };
 
     for (const auto& [type, name]: TYPES) {
@@ -360,6 +366,35 @@ TEST(ServerData, Text) {
     );
     EXPECT_EQ(json::parse("{}").get<TTSRawTextData>().text, "");
     EXPECT_EQ(json(nullptr).get<TextData>().text, "");
+}
+
+TEST(ServerData, AudioLevel) {
+    EXPECT_DOUBLE_EQ(
+            json::parse(R"({"value": 0.3})").get<AudioLevelData>().value, 0.3
+    );
+}
+
+TEST(ServerData, BotLLMMarker) {
+    auto data = json::parse(R"({
+        "text": "[done]",
+        "kind": "complete",
+        "raw": "[done] It's sunny in Lisbon.",
+        "markers": ["[done]", "[short]", "[long]"]
+    })")
+                        .get<BotLLMMarkerData>();
+    EXPECT_EQ(data.text, "[done]");
+    EXPECT_EQ(data.kind, "complete");
+    EXPECT_EQ(data.raw, "[done] It's sunny in Lisbon.");
+    EXPECT_EQ(
+            data.markers,
+            (std::vector<std::string> {"[done]", "[short]", "[long]"})
+    );
+
+    // A response without a marker the bot knows.
+    data = json::parse(R"({"text": "", "raw": "Hi.", "markers": ["[done]"]})")
+                   .get<BotLLMMarkerData>();
+    EXPECT_EQ(data.text, "");
+    EXPECT_EQ(data.kind, std::nullopt);
 }
 
 TEST(ServerData, BotOutput) {

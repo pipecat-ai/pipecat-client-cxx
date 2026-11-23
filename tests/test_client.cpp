@@ -421,7 +421,9 @@ TEST(PipecatClient, DispatchesMessages) {
     client->connect();
 
     const json MESSAGES[] = {
+            rtvi_message("vad-user-started-speaking"),
             rtvi_message("user-started-speaking"),
+            rtvi_message("user-audio-level", {{"value", 0.5}}),
             rtvi_message(
                     "user-input",
                     {{"text", "Hi"},
@@ -429,15 +431,24 @@ TEST(PipecatClient, DispatchesMessages) {
                      {"final", true}}
             ),
             rtvi_message("stt-raw-text", {{"text", "Hi"}, {"final", true}}),
+            rtvi_message("vad-user-stopped-speaking"),
             rtvi_message("user-stopped-speaking"),
             rtvi_message("user-llm-text", {{"text", "Hi"}}),
             rtvi_message("user-mute-started"),
             rtvi_message("user-mute-stopped"),
             rtvi_message("bot-llm-started"),
             rtvi_message("llm-raw-text", {{"text", "Hel"}}),
+            rtvi_message(
+                    "bot-llm-marker",
+                    {{"text", "[done]"},
+                     {"kind", "complete"},
+                     {"raw", "[done] Hello"},
+                     {"markers", {"[done]"}}}
+            ),
             rtvi_message("bot-llm-stopped"),
             rtvi_message("bot-started-speaking"),
             rtvi_message("bot-tts-started"),
+            rtvi_message("bot-audio-level", {{"value", 0.25}}),
             rtvi_message("tts-raw-text", {{"text", "Hello"}}),
             rtvi_message(
                     "bot-output",
@@ -450,6 +461,7 @@ TEST(PipecatClient, DispatchesMessages) {
                     "metrics",
                     {{"ttfb", {{{"processor", "llm"}, {"value", 0.2}}}}}
             ),
+            rtvi_message("system-log", {{"text", "Pipeline started"}}),
             rtvi_message("server-message", {{"score", 10}}),
             rtvi_message("error", {{"error", "Boom"}, {"fatal", true}}),
             rtvi_message("error-response", {{"error", "Unsupported"}}),
@@ -486,29 +498,36 @@ TEST(PipecatClient, DispatchesMessages) {
 
     ASSERT_TRUE(recorder.wait_for(R"(server-message:{"done":true})"));
     auto events = recorder.events();
-    auto first =
-            std::find(events.begin(), events.end(), "user-started-speaking");
+    auto first = std::find(
+            events.begin(), events.end(), "vad-user-started-speaking"
+    );
     EXPECT_EQ(
             Events(first, events.end()),
             (Events {
+                    "vad-user-started-speaking",
                     "user-started-speaking",
+                    "user-audio-level:0.5",
                     "user-input:transcription:Hi:final",
                     "stt-raw-text:Hi:final",
+                    "vad-user-stopped-speaking",
                     "user-stopped-speaking",
                     "user-llm-text:Hi",
                     "user-mute-started",
                     "user-mute-stopped",
                     "bot-llm-started",
                     "llm-raw-text:Hel",
+                    "bot-llm-marker:complete:[done]",
                     "bot-llm-stopped",
                     "bot-started-speaking",
                     "bot-tts-started",
+                    "bot-audio-level:0.25",
                     "tts-raw-text:Hello",
                     "bot-output:Hello:sentence",
                     "bot-tts-stopped",
                     "bot-stopped-speaking",
                     "bot-interrupted",
                     "metrics:1",
+                    "system-log:Pipeline started",
                     R"(server-message:{"score":10})",
                     "error:Boom:fatal",
                     "message-error:Unsupported",
