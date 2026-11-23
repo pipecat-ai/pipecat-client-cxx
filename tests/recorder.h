@@ -118,6 +118,9 @@ class Recorder : public pipecat::PipecatClientCallbacks {
     void on_metrics(const pipecat::rtvi::MetricsData& data) override {
         record("metrics:" + std::to_string(data.ttfb.size()));
     }
+    void on_system_log(const pipecat::rtvi::SystemLogData& data) override {
+        record("system-log:" + data.text);
+    }
     void on_unhandled_message(const pipecat::rtvi::Message& message) override {
         record("unhandled:" + message.type);
     }
@@ -133,11 +136,27 @@ class Recorder : public pipecat::PipecatClientCallbacks {
     void on_user_stopped_speaking() override {
         record("user-stopped-speaking");
     }
+    void on_vad_user_started_speaking() override {
+        record("vad-user-started-speaking");
+    }
+    void on_vad_user_stopped_speaking() override {
+        record("vad-user-stopped-speaking");
+    }
     void on_bot_started_speaking() override { record("bot-started-speaking"); }
     void on_bot_stopped_speaking() override { record("bot-stopped-speaking"); }
     void on_bot_interrupted() override { record("bot-interrupted"); }
     void on_user_mute_started() override { record("user-mute-started"); }
     void on_user_mute_stopped() override { record("user-mute-stopped"); }
+    void on_user_audio_level(
+            const pipecat::rtvi::AudioLevelData& data
+    ) override {
+        record("user-audio-level:" + nlohmann::json(data.value).dump());
+    }
+    void on_bot_audio_level(
+            const pipecat::rtvi::AudioLevelData& data
+    ) override {
+        record("bot-audio-level:" + nlohmann::json(data.value).dump());
+    }
 
     // Transcription and output
 
@@ -170,6 +189,11 @@ class Recorder : public pipecat::PipecatClientCallbacks {
     ) override {
         record("bot-llm-search-response:" + data.search_result.value_or(""));
     }
+    void on_bot_llm_marker(
+            const pipecat::rtvi::BotLLMMarkerData& data
+    ) override {
+        record("bot-llm-marker:" + data.kind.value_or("") + ":" + data.text);
+    }
 
     // Function calls
 
@@ -200,6 +224,14 @@ class Recorder : public pipecat::PipecatClientCallbacks {
     void on_bot_tts_stopped() override { record("bot-tts-stopped"); }
     void on_tts_raw_text(const pipecat::rtvi::TTSRawTextData& data) override {
         record("tts-raw-text:" + data.text);
+    }
+
+    // Conversation flows
+
+    void on_flow_node_entered(
+            const pipecat::rtvi::FlowNodeEnteredData& data
+    ) override {
+        record("flow-node-entered:" + data.node);
     }
 
    private:

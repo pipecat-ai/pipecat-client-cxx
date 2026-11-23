@@ -55,6 +55,13 @@ TEST(MessageType, RoundTripsAllTypes) {
             {MessageType::LLMFunctionCallInProgress,
              "llm-function-call-in-progress"},
             {MessageType::LLMFunctionCallStopped, "llm-function-call-stopped"},
+            {MessageType::FlowNodeEntered, "flow-node-entered"},
+            {MessageType::VADUserStartedSpeaking, "vad-user-started-speaking"},
+            {MessageType::VADUserStoppedSpeaking, "vad-user-stopped-speaking"},
+            {MessageType::UserAudioLevel, "user-audio-level"},
+            {MessageType::BotAudioLevel, "bot-audio-level"},
+            {MessageType::SystemLog, "system-log"},
+            {MessageType::BotLLMMarker, "bot-llm-marker"},
     };
 
     for (const auto& [type, name]: TYPES) {
@@ -125,7 +132,7 @@ TEST(Message, ClientReady) {
     EXPECT_EQ(message.type, "client-ready");
     EXPECT_EQ(
             message.data,
-            json::parse(R"({"version": "2.3.0", "about": {"library": "test"}})")
+            json::parse(R"({"version": "2.4.0", "about": {"library": "test"}})")
     );
 
     about.library_version = "1.0.0";
@@ -361,6 +368,35 @@ TEST(ServerData, Text) {
     EXPECT_EQ(json(nullptr).get<TextData>().text, "");
 }
 
+TEST(ServerData, AudioLevel) {
+    EXPECT_DOUBLE_EQ(
+            json::parse(R"({"value": 0.3})").get<AudioLevelData>().value, 0.3
+    );
+}
+
+TEST(ServerData, BotLLMMarker) {
+    auto data = json::parse(R"({
+        "text": "[done]",
+        "kind": "complete",
+        "raw": "[done] It's sunny in Lisbon.",
+        "markers": ["[done]", "[short]", "[long]"]
+    })")
+                        .get<BotLLMMarkerData>();
+    EXPECT_EQ(data.text, "[done]");
+    EXPECT_EQ(data.kind, "complete");
+    EXPECT_EQ(data.raw, "[done] It's sunny in Lisbon.");
+    EXPECT_EQ(
+            data.markers,
+            (std::vector<std::string> {"[done]", "[short]", "[long]"})
+    );
+
+    // A response without a marker the bot knows.
+    data = json::parse(R"({"text": "", "raw": "Hi.", "markers": ["[done]"]})")
+                   .get<BotLLMMarkerData>();
+    EXPECT_EQ(data.text, "");
+    EXPECT_EQ(data.kind, std::nullopt);
+}
+
 TEST(ServerData, BotOutput) {
     auto data = json::parse(R"({
         "text": "Hello there.",
@@ -420,7 +456,8 @@ TEST(ServerData, Metrics) {
     auto raw = json::parse(R"({
         "ttfb": [{"processor": "OpenAILLMService#0", "model": "gpt-4o", "value": 0.25}],
         "processing": [{"processor": "CartesiaTTSService#0", "value": 1}],
-        "tokens": [{"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15}]
+        "characters": [{"processor": "CartesiaTTSService#0", "value": 12}],
+        "custom": [{"processor": "MyProcessor#0", "value": 3}]
     })");
     auto data = raw.get<MetricsData>();
     ASSERT_EQ(data.ttfb.size(), 1u);
@@ -430,8 +467,83 @@ TEST(ServerData, Metrics) {
     ASSERT_EQ(data.processing.size(), 1u);
     EXPECT_EQ(data.processing[0].model, std::nullopt);
     EXPECT_DOUBLE_EQ(data.processing[0].value, 1.0);
-    EXPECT_TRUE(data.characters.empty());
+    ASSERT_EQ(data.characters.size(), 1u);
+    EXPECT_DOUBLE_EQ(data.characters[0].value, 12.0);
+    EXPECT_TRUE(data.ttfa.empty());
+    EXPECT_TRUE(data.ttfat.empty());
+    EXPECT_TRUE(data.tokens.empty());
+    EXPECT_TRUE(data.stt_usage.empty());
+    // Kinds without a field are only in raw.
     EXPECT_EQ(data.raw, raw);
+}
+
+TEST(ServerData, MetricsTimesToFirstAudioAndAnswer) {
+    auto data = json::parse(R"({
+        "ttfa": [{
+            "processor": "CartesiaTTSService#0", "model": "sonic-3",
+            "ttfa": 0.35, "ttfb": 0.3, "leading_silence": 0.05
+        }],
+        "ttfat": [{
+            "processor": "OpenAILLMService#0",
+            "ttfat": 1.5, "ttfb": 0.5, "thinking_time": 1.0
+        }]
+    })")
+                        .get<MetricsData>();
+    ASSERT_EQ(data.ttfa.size(), 1u);
+    EXPECT_EQ(data.ttfa[0].processor, "CartesiaTTSService#0");
+    EXPECT_EQ(data.ttfa[0].model, "sonic-3");
+    EXPECT_DOUBLE_EQ(data.ttfa[0].ttfa, 0.35);
+    EXPECT_DOUBLE_EQ(data.ttfa[0].ttfb, 0.3);
+    EXPECT_DOUBLE_EQ(data.ttfa[0].leading_silence, 0.05);
+    ASSERT_EQ(data.ttfat.size(), 1u);
+    EXPECT_EQ(data.ttfat[0].processor, "OpenAILLMService#0");
+    EXPECT_EQ(data.ttfat[0].model, std::nullopt);
+    EXPECT_DOUBLE_EQ(data.ttfat[0].ttfat, 1.5);
+    EXPECT_DOUBLE_EQ(data.ttfat[0].ttfb, 0.5);
+    EXPECT_DOUBLE_EQ(data.ttfat[0].thinking_time, 1.0);
+}
+
+TEST(ServerData, MetricsUsage) {
+    auto data = json::parse(R"({
+        "tokens": [
+            {
+                "prompt_tokens": 100, "completion_tokens": 20,
+                "total_tokens": 120, "cache_read_input_tokens": 80,
+                "cache_creation_input_tokens": 10, "reasoning_tokens": 5,
+                "input_audio_tokens": 30, "output_audio_tokens": 15,
+                "cache_read_input_audio_tokens": 25
+            },
+            {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15}
+        ],
+        "stt_usage": [{
+            "processor": "DeepgramSTTService#0", "model": "nova-3",
+            "value": {"audio_seconds": 2.5}
+        }]
+    })")
+                        .get<MetricsData>();
+    ASSERT_EQ(data.tokens.size(), 2u);
+    const auto& tokens = data.tokens[0];
+    EXPECT_EQ(tokens.prompt_tokens, 100);
+    EXPECT_EQ(tokens.completion_tokens, 20);
+    EXPECT_EQ(tokens.total_tokens, 120);
+    EXPECT_EQ(tokens.cache_read_input_tokens, 80);
+    EXPECT_EQ(tokens.cache_creation_input_tokens, 10);
+    EXPECT_EQ(tokens.reasoning_tokens, 5);
+    EXPECT_EQ(tokens.input_audio_tokens, 30);
+    EXPECT_EQ(tokens.output_audio_tokens, 15);
+    EXPECT_EQ(tokens.cache_read_input_audio_tokens, 25);
+    const auto& minimal = data.tokens[1];
+    EXPECT_EQ(minimal.total_tokens, 15);
+    EXPECT_EQ(minimal.cache_read_input_tokens, std::nullopt);
+    EXPECT_EQ(minimal.cache_creation_input_tokens, std::nullopt);
+    EXPECT_EQ(minimal.reasoning_tokens, std::nullopt);
+    EXPECT_EQ(minimal.input_audio_tokens, std::nullopt);
+    EXPECT_EQ(minimal.output_audio_tokens, std::nullopt);
+    EXPECT_EQ(minimal.cache_read_input_audio_tokens, std::nullopt);
+    ASSERT_EQ(data.stt_usage.size(), 1u);
+    EXPECT_EQ(data.stt_usage[0].processor, "DeepgramSTTService#0");
+    EXPECT_EQ(data.stt_usage[0].model, "nova-3");
+    EXPECT_DOUBLE_EQ(data.stt_usage[0].audio_seconds, 2.5);
 }
 
 TEST(ServerData, LLMFunctionCallStarted) {
@@ -496,6 +608,33 @@ TEST(ServerData, BotLLMSearchResponse) {
     ASSERT_EQ(data.origins[0].results.size(), 1u);
     EXPECT_EQ(data.origins[0].results[0].text, "Sunny today");
     EXPECT_EQ(data.origins[0].results[0].confidence, std::vector<double> {0.9});
+}
+
+TEST(ServerData, FlowNodeEntered) {
+    auto data = json::parse(R"({
+        "node": "verify.check_birthday",
+        "previous_node": "greet",
+        "function": "wants_to_book",
+        "metadata": {"step": 2},
+        "function_metadata": {"intent": "book"},
+        "parent": "verify"
+    })")
+                        .get<FlowNodeEnteredData>();
+    EXPECT_EQ(data.node, "verify.check_birthday");
+    EXPECT_EQ(data.previous_node, "greet");
+    EXPECT_EQ(data.function, "wants_to_book");
+    EXPECT_EQ(data.metadata, json({{"step", 2}}));
+    EXPECT_EQ(data.function_metadata, json({{"intent", "book"}}));
+    EXPECT_EQ(data.parent, "verify");
+
+    // The flow's first node.
+    data = json::parse(R"({"node": "greet"})").get<FlowNodeEnteredData>();
+    EXPECT_EQ(data.node, "greet");
+    EXPECT_EQ(data.previous_node, std::nullopt);
+    EXPECT_EQ(data.function, std::nullopt);
+    EXPECT_TRUE(data.metadata.is_null());
+    EXPECT_TRUE(data.function_metadata.is_null());
+    EXPECT_EQ(data.parent, std::nullopt);
 }
 
 TEST(ServerData, ServerResponse) {

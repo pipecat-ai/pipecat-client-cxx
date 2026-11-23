@@ -29,7 +29,7 @@
 namespace pipecat::rtvi {
 
 /// The RTVI protocol version this library speaks.
-inline constexpr const char* PROTOCOL_VERSION = "2.3.0";
+inline constexpr const char* PROTOCOL_VERSION = "2.4.0";
 
 /// The label of every RTVI message.
 inline constexpr const char* MESSAGE_LABEL = "rtvi-ai";
@@ -72,6 +72,13 @@ enum class MessageType {
     LLMFunctionCallStarted,     ///< The bot's LLM started a function call.
     LLMFunctionCallInProgress,  ///< A function call is running.
     LLMFunctionCallStopped,     ///< A function call finished.
+    FlowNodeEntered,            ///< A conversation flow entered a node.
+    VADUserStartedSpeaking,     ///< The bot heard the user's voice start.
+    VADUserStoppedSpeaking,     ///< The bot heard the user's voice stop.
+    UserAudioLevel,             ///< How loud the user's audio is.
+    BotAudioLevel,              ///< How loud the bot's audio is.
+    SystemLog,                  ///< A line of the bot's log.
+    BotLLMMarker,               ///< The marker the bot's LLM put in a response.
 };
 
 /// The RTVI name of a message type, e.g. "bot-ready".
@@ -250,6 +257,30 @@ using LLMRawTextData = TextData;
 /// Text the bot's text-to-speech speaks, as it speaks it.
 using TTSRawTextData = TextData;
 
+/// A line of the bot's log.
+using SystemLogData = TextData;
+
+/// How loud the user's or the bot's audio is.
+struct AudioLevelData {
+    /// The level, from 0 (quiet) to 1 (loud).
+    double value = 0;
+};
+
+/// The marker the bot's LLM put in a response, outside the text it speaks,
+/// e.g. one saying whether the user's turn was complete.
+struct BotLLMMarkerData {
+    /// The marker, as the LLM wrote it. Empty if the response had none.
+    std::string text;
+    /// What the marker means, e.g. "complete", "short" or "long" for whether
+    /// the user's turn was complete, or "silent" for a reply the bot left
+    /// unspoken. std::nullopt if the bot doesn't know.
+    std::optional<std::string> kind;
+    /// The whole response, as the LLM wrote it, markers included.
+    std::string raw;
+    /// Every marker the bot knows.
+    std::vector<std::string> markers;
+};
+
 /// How much of a text the bot has spoken.
 struct SpokenProgressData {
     /// Text spoken so far, including the current word.
@@ -303,12 +334,84 @@ struct MetricData {
     double value = 0;
 };
 
+/// How long a text-to-speech service took to send its first audible sound.
+struct TTFAMetricData {
+    /// The text-to-speech service.
+    std::string processor;
+    /// The AI model used, if any.
+    std::optional<std::string> model;
+    /// Time to first audio, in seconds: `ttfb` plus `leading_silence`.
+    double ttfa = 0;
+    /// Time to first byte, in seconds. The service's ttfb metric already
+    /// reports it, so don't count it twice.
+    double ttfb = 0;
+    /// Silence before the first audible sound, in seconds.
+    double leading_silence = 0;
+};
+
+/// How long an LLM took to send the first token of its answer.
+struct TTFATMetricData {
+    /// The LLM service.
+    std::string processor;
+    /// The AI model used, if any.
+    std::optional<std::string> model;
+    /// Time to first answer token, in seconds: `ttfb` plus `thinking_time`.
+    double ttfat = 0;
+    /// Time to first byte, in seconds. The service's ttfb metric already
+    /// reports it, so don't count it twice.
+    double ttfb = 0;
+    /// Time between the LLM's first output and its first answer token, in
+    /// seconds, usually spent reasoning.
+    double thinking_time = 0;
+};
+
+/// The tokens an LLM call used.
+struct LLMTokenUsage {
+    /// Tokens in the prompt, including results of function calls.
+    int64_t prompt_tokens = 0;
+    /// Tokens in the answer, including reasoning tokens.
+    int64_t completion_tokens = 0;
+    /// All the tokens used.
+    int64_t total_tokens = 0;
+    /// Prompt tokens read from the LLM's cache, if it says.
+    std::optional<int64_t> cache_read_input_tokens;
+    /// Prompt tokens written to the LLM's cache, if it says.
+    std::optional<int64_t> cache_creation_input_tokens;
+    /// Answer tokens used for reasoning, if it says.
+    std::optional<int64_t> reasoning_tokens;
+    /// Prompt tokens that were audio, if it says.
+    std::optional<int64_t> input_audio_tokens;
+    /// Answer tokens that were audio, if it says.
+    std::optional<int64_t> output_audio_tokens;
+    /// Cached prompt tokens that were audio, if it says.
+    std::optional<int64_t> cache_read_input_audio_tokens;
+};
+
+/// How much audio a speech-to-text service received.
+struct STTUsageMetricData {
+    /// The speech-to-text service.
+    std::string processor;
+    /// The AI model used, if any.
+    std::optional<std::string> model;
+    /// Seconds of audio sent to the service since its last report. Add them
+    /// up for the whole session.
+    double audio_seconds = 0;
+};
+
 /// Performance metrics from the bot.
 struct MetricsData {
     /// Times to first byte, in seconds.
     std::vector<MetricData> ttfb;
     /// Processing times, in seconds.
     std::vector<MetricData> processing;
+    /// Times to first audio of text-to-speech services.
+    std::vector<TTFAMetricData> ttfa;
+    /// Times to first answer token of LLMs.
+    std::vector<TTFATMetricData> ttfat;
+    /// Tokens used by LLM calls.
+    std::vector<LLMTokenUsage> tokens;
+    /// Audio received by speech-to-text services.
+    std::vector<STTUsageMetricData> stt_usage;
     /// Characters sent to be spoken.
     std::vector<MetricData> characters;
     /// All the metrics, including those without a field above.
@@ -370,6 +473,26 @@ struct BotLLMSearchResponseData {
     std::optional<std::string> rendered_content;
     /// Where the results come from.
     std::vector<LLMSearchOrigin> origins;
+};
+
+/// A conversation flow, built with Pipecat Flows, entered a node.
+struct FlowNodeEnteredData {
+    /// Name of the node. A node of a subflow starts with the name of the node
+    /// that runs the subflow, e.g. "verify.check_birthday".
+    std::string node;
+    /// Name of the node the flow left. std::nullopt for the flow's first node.
+    std::optional<std::string> previous_node;
+    /// Name of the function whose call moved the flow here. std::nullopt if
+    /// the bot moved it itself.
+    std::optional<std::string> function;
+    /// The node's metadata, a JSON object defined by your bot. Null if it has
+    /// none.
+    nlohmann::json metadata;
+    /// The metadata of `function`, a JSON object defined by your bot. Null if
+    /// it has none.
+    nlohmann::json function_metadata;
+    /// For a node of a subflow, the node that runs the subflow.
+    std::optional<std::string> parent;
 };
 
 /// An RTVI message.
@@ -440,9 +563,15 @@ void from_json(const nlohmann::json& j, TranscriptionSpeaker& data);
 void from_json(const nlohmann::json& j, UserInputData& data);
 void from_json(const nlohmann::json& j, STTRawTextData& data);
 void from_json(const nlohmann::json& j, TextData& data);
+void from_json(const nlohmann::json& j, AudioLevelData& data);
+void from_json(const nlohmann::json& j, BotLLMMarkerData& data);
 void from_json(const nlohmann::json& j, SpokenProgressData& data);
 void from_json(const nlohmann::json& j, BotOutputData& data);
 void from_json(const nlohmann::json& j, MetricData& data);
+void from_json(const nlohmann::json& j, TTFAMetricData& data);
+void from_json(const nlohmann::json& j, TTFATMetricData& data);
+void from_json(const nlohmann::json& j, LLMTokenUsage& data);
+void from_json(const nlohmann::json& j, STTUsageMetricData& data);
 void from_json(const nlohmann::json& j, MetricsData& data);
 void from_json(const nlohmann::json& j, LLMFunctionCallStartedData& data);
 void from_json(const nlohmann::json& j, LLMFunctionCallInProgressData& data);
@@ -450,6 +579,7 @@ void from_json(const nlohmann::json& j, LLMFunctionCallStoppedData& data);
 void from_json(const nlohmann::json& j, LLMSearchResult& data);
 void from_json(const nlohmann::json& j, LLMSearchOrigin& data);
 void from_json(const nlohmann::json& j, BotLLMSearchResponseData& data);
+void from_json(const nlohmann::json& j, FlowNodeEnteredData& data);
 
 /// @endcond
 

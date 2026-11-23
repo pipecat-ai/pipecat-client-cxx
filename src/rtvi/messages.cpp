@@ -136,6 +136,20 @@ const char* to_string(MessageType type) {
         return "llm-function-call-in-progress";
     case MessageType::LLMFunctionCallStopped:
         return "llm-function-call-stopped";
+    case MessageType::FlowNodeEntered:
+        return "flow-node-entered";
+    case MessageType::VADUserStartedSpeaking:
+        return "vad-user-started-speaking";
+    case MessageType::VADUserStoppedSpeaking:
+        return "vad-user-stopped-speaking";
+    case MessageType::UserAudioLevel:
+        return "user-audio-level";
+    case MessageType::BotAudioLevel:
+        return "bot-audio-level";
+    case MessageType::SystemLog:
+        return "system-log";
+    case MessageType::BotLLMMarker:
+        return "bot-llm-marker";
     }
     return "";
 }
@@ -329,6 +343,17 @@ void from_json(const json& j, TextData& data) {
     data.text = value_or<std::string>(j, "text", "");
 }
 
+void from_json(const json& j, AudioLevelData& data) {
+    data.value = value_or(j, "value", 0.0);
+}
+
+void from_json(const json& j, BotLLMMarkerData& data) {
+    data.text = value_or<std::string>(j, "text", "");
+    data.kind = optional_value<std::string>(j, "kind");
+    data.raw = value_or<std::string>(j, "raw", "");
+    data.markers = value_or<std::vector<std::string>>(j, "markers", {});
+}
+
 void from_json(const json& j, SpokenProgressData& data) {
     data.accumulated_text = value_or<std::string>(j, "accumulated_text", "");
     data.remaining_text = value_or<std::string>(j, "remaining_text", "");
@@ -356,9 +381,52 @@ void from_json(const json& j, MetricData& data) {
     data.value = value_or(j, "value", 0.0);
 }
 
+void from_json(const json& j, TTFAMetricData& data) {
+    data.processor = value_or<std::string>(j, "processor", "");
+    data.model = optional_value<std::string>(j, "model");
+    data.ttfa = value_or(j, "ttfa", 0.0);
+    data.ttfb = value_or(j, "ttfb", 0.0);
+    data.leading_silence = value_or(j, "leading_silence", 0.0);
+}
+
+void from_json(const json& j, TTFATMetricData& data) {
+    data.processor = value_or<std::string>(j, "processor", "");
+    data.model = optional_value<std::string>(j, "model");
+    data.ttfat = value_or(j, "ttfat", 0.0);
+    data.ttfb = value_or(j, "ttfb", 0.0);
+    data.thinking_time = value_or(j, "thinking_time", 0.0);
+}
+
+void from_json(const json& j, LLMTokenUsage& data) {
+    data.prompt_tokens = value_or<int64_t>(j, "prompt_tokens", 0);
+    data.completion_tokens = value_or<int64_t>(j, "completion_tokens", 0);
+    data.total_tokens = value_or<int64_t>(j, "total_tokens", 0);
+    data.cache_read_input_tokens =
+            optional_value<int64_t>(j, "cache_read_input_tokens");
+    data.cache_creation_input_tokens =
+            optional_value<int64_t>(j, "cache_creation_input_tokens");
+    data.reasoning_tokens = optional_value<int64_t>(j, "reasoning_tokens");
+    data.input_audio_tokens = optional_value<int64_t>(j, "input_audio_tokens");
+    data.output_audio_tokens =
+            optional_value<int64_t>(j, "output_audio_tokens");
+    data.cache_read_input_audio_tokens =
+            optional_value<int64_t>(j, "cache_read_input_audio_tokens");
+}
+
+void from_json(const json& j, STTUsageMetricData& data) {
+    data.processor = value_or<std::string>(j, "processor", "");
+    data.model = optional_value<std::string>(j, "model");
+    data.audio_seconds = value_or(json_value(j, "value"), "audio_seconds", 0.0);
+}
+
 void from_json(const json& j, MetricsData& data) {
     data.ttfb = value_or<std::vector<MetricData>>(j, "ttfb", {});
     data.processing = value_or<std::vector<MetricData>>(j, "processing", {});
+    data.ttfa = value_or<std::vector<TTFAMetricData>>(j, "ttfa", {});
+    data.ttfat = value_or<std::vector<TTFATMetricData>>(j, "ttfat", {});
+    data.tokens = value_or<std::vector<LLMTokenUsage>>(j, "tokens", {});
+    data.stt_usage =
+            value_or<std::vector<STTUsageMetricData>>(j, "stt_usage", {});
     data.characters = value_or<std::vector<MetricData>>(j, "characters", {});
     data.raw = j;
 }
@@ -398,6 +466,15 @@ void from_json(const json& j, BotLLMSearchResponseData& data) {
     data.search_result = optional_value<std::string>(j, "search_result");
     data.rendered_content = optional_value<std::string>(j, "rendered_content");
     data.origins = value_or<std::vector<LLMSearchOrigin>>(j, "origins", {});
+}
+
+void from_json(const json& j, FlowNodeEnteredData& data) {
+    data.node = value_or<std::string>(j, "node", "");
+    data.previous_node = optional_value<std::string>(j, "previous_node");
+    data.function = optional_value<std::string>(j, "function");
+    data.metadata = json_value(j, "metadata");
+    data.function_metadata = json_value(j, "function_metadata");
+    data.parent = optional_value<std::string>(j, "parent");
 }
 
 }  // namespace pipecat::rtvi

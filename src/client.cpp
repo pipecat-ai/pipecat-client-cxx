@@ -1077,6 +1077,27 @@ void PipecatClient::Impl::handle_message(const rtvi::Message& message) {
     case MessageType::LLMFunctionCallStopped:
         notify_data(data, &C::on_llm_function_call_stopped);
         break;
+    case MessageType::FlowNodeEntered:
+        notify_data(data, &C::on_flow_node_entered);
+        break;
+    case MessageType::VADUserStartedSpeaking:
+        notify_event(&C::on_vad_user_started_speaking);
+        break;
+    case MessageType::VADUserStoppedSpeaking:
+        notify_event(&C::on_vad_user_stopped_speaking);
+        break;
+    case MessageType::UserAudioLevel:
+        notify_data(data, &C::on_user_audio_level);
+        break;
+    case MessageType::BotAudioLevel:
+        notify_data(data, &C::on_bot_audio_level);
+        break;
+    case MessageType::SystemLog:
+        notify_data(data, &C::on_system_log);
+        break;
+    case MessageType::BotLLMMarker:
+        notify_data(data, &C::on_bot_llm_marker);
+        break;
     case MessageType::ClientReady:
     case MessageType::DisconnectBot:
     case MessageType::ClientMessage:

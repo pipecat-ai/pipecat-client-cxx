@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `PipecatClientCallbacks::on_flow_node_entered()` tells you each time the
+  bot's conversation flow, built with Pipecat Flows, enters a node. Its
+  `rtvi::FlowNodeEnteredData` has the node, the node the flow left, the
+  function that moved it there, their metadata and, for a node of a subflow,
+  the node that runs the subflow. Bots on Pipecat 1.17 or newer send it.
+
+- `rtvi::MetricsData` has every kind of metric bots send, not only `ttfb`,
+  `processing` and `characters`: `ttfa`, the time to first audio of
+  text-to-speech services, `ttfat`, the time to first answer token of LLMs,
+  `tokens`, the tokens LLM calls used, and `stt_usage`, the audio
+  speech-to-text services received. Before, they were only in `raw`.
+
+- New callbacks for messages bots send only if they're set up to:
+  - `on_vad_user_started_speaking()` and `on_vad_user_stopped_speaking()`,
+    when the bot's voice activity detection hears the user's voice start and
+    stop, sooner than `on_user_started_speaking()` and
+    `on_user_stopped_speaking()`. Bots on Pipecat 1.4 or newer send them.
+  - `on_user_audio_level()` and `on_bot_audio_level()`, how loud the user's
+    and the bot's audio are, from 0 to 1, e.g. to show a level meter.
+  - `on_system_log()`, a line of the bot's log, for debugging.
+  - `on_bot_llm_marker()`, the marker the bot's LLM put in a response, e.g.
+    one saying whether the user's turn was complete, for testing and
+    debugging. Bots on Pipecat 1.11 or newer send it.
+
+### Changed
+
+- The client speaks RTVI 2.4, so bots on Pipecat 1.17 or newer send it where
+  their conversation flow is, to `on_flow_node_entered()`.
+
 ## [1.3.0] - 2026-11-12
 
 ### Added
