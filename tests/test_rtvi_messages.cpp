@@ -421,7 +421,8 @@ TEST(ServerData, Metrics) {
     auto raw = json::parse(R"({
         "ttfb": [{"processor": "OpenAILLMService#0", "model": "gpt-4o", "value": 0.25}],
         "processing": [{"processor": "CartesiaTTSService#0", "value": 1}],
-        "tokens": [{"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15}]
+        "characters": [{"processor": "CartesiaTTSService#0", "value": 12}],
+        "custom": [{"processor": "MyProcessor#0", "value": 3}]
     })");
     auto data = raw.get<MetricsData>();
     ASSERT_EQ(data.ttfb.size(), 1u);
@@ -431,8 +432,83 @@ TEST(ServerData, Metrics) {
     ASSERT_EQ(data.processing.size(), 1u);
     EXPECT_EQ(data.processing[0].model, std::nullopt);
     EXPECT_DOUBLE_EQ(data.processing[0].value, 1.0);
-    EXPECT_TRUE(data.characters.empty());
+    ASSERT_EQ(data.characters.size(), 1u);
+    EXPECT_DOUBLE_EQ(data.characters[0].value, 12.0);
+    EXPECT_TRUE(data.ttfa.empty());
+    EXPECT_TRUE(data.ttfat.empty());
+    EXPECT_TRUE(data.tokens.empty());
+    EXPECT_TRUE(data.stt_usage.empty());
+    // Kinds without a field are only in raw.
     EXPECT_EQ(data.raw, raw);
+}
+
+TEST(ServerData, MetricsTimesToFirstAudioAndAnswer) {
+    auto data = json::parse(R"({
+        "ttfa": [{
+            "processor": "CartesiaTTSService#0", "model": "sonic-3",
+            "ttfa": 0.35, "ttfb": 0.3, "leading_silence": 0.05
+        }],
+        "ttfat": [{
+            "processor": "OpenAILLMService#0",
+            "ttfat": 1.5, "ttfb": 0.5, "thinking_time": 1.0
+        }]
+    })")
+                        .get<MetricsData>();
+    ASSERT_EQ(data.ttfa.size(), 1u);
+    EXPECT_EQ(data.ttfa[0].processor, "CartesiaTTSService#0");
+    EXPECT_EQ(data.ttfa[0].model, "sonic-3");
+    EXPECT_DOUBLE_EQ(data.ttfa[0].ttfa, 0.35);
+    EXPECT_DOUBLE_EQ(data.ttfa[0].ttfb, 0.3);
+    EXPECT_DOUBLE_EQ(data.ttfa[0].leading_silence, 0.05);
+    ASSERT_EQ(data.ttfat.size(), 1u);
+    EXPECT_EQ(data.ttfat[0].processor, "OpenAILLMService#0");
+    EXPECT_EQ(data.ttfat[0].model, std::nullopt);
+    EXPECT_DOUBLE_EQ(data.ttfat[0].ttfat, 1.5);
+    EXPECT_DOUBLE_EQ(data.ttfat[0].ttfb, 0.5);
+    EXPECT_DOUBLE_EQ(data.ttfat[0].thinking_time, 1.0);
+}
+
+TEST(ServerData, MetricsUsage) {
+    auto data = json::parse(R"({
+        "tokens": [
+            {
+                "prompt_tokens": 100, "completion_tokens": 20,
+                "total_tokens": 120, "cache_read_input_tokens": 80,
+                "cache_creation_input_tokens": 10, "reasoning_tokens": 5,
+                "input_audio_tokens": 30, "output_audio_tokens": 15,
+                "cache_read_input_audio_tokens": 25
+            },
+            {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15}
+        ],
+        "stt_usage": [{
+            "processor": "DeepgramSTTService#0", "model": "nova-3",
+            "value": {"audio_seconds": 2.5}
+        }]
+    })")
+                        .get<MetricsData>();
+    ASSERT_EQ(data.tokens.size(), 2u);
+    const auto& tokens = data.tokens[0];
+    EXPECT_EQ(tokens.prompt_tokens, 100);
+    EXPECT_EQ(tokens.completion_tokens, 20);
+    EXPECT_EQ(tokens.total_tokens, 120);
+    EXPECT_EQ(tokens.cache_read_input_tokens, 80);
+    EXPECT_EQ(tokens.cache_creation_input_tokens, 10);
+    EXPECT_EQ(tokens.reasoning_tokens, 5);
+    EXPECT_EQ(tokens.input_audio_tokens, 30);
+    EXPECT_EQ(tokens.output_audio_tokens, 15);
+    EXPECT_EQ(tokens.cache_read_input_audio_tokens, 25);
+    const auto& minimal = data.tokens[1];
+    EXPECT_EQ(minimal.total_tokens, 15);
+    EXPECT_EQ(minimal.cache_read_input_tokens, std::nullopt);
+    EXPECT_EQ(minimal.cache_creation_input_tokens, std::nullopt);
+    EXPECT_EQ(minimal.reasoning_tokens, std::nullopt);
+    EXPECT_EQ(minimal.input_audio_tokens, std::nullopt);
+    EXPECT_EQ(minimal.output_audio_tokens, std::nullopt);
+    EXPECT_EQ(minimal.cache_read_input_audio_tokens, std::nullopt);
+    ASSERT_EQ(data.stt_usage.size(), 1u);
+    EXPECT_EQ(data.stt_usage[0].processor, "DeepgramSTTService#0");
+    EXPECT_EQ(data.stt_usage[0].model, "nova-3");
+    EXPECT_DOUBLE_EQ(data.stt_usage[0].audio_seconds, 2.5);
 }
 
 TEST(ServerData, LLMFunctionCallStarted) {

@@ -304,12 +304,84 @@ struct MetricData {
     double value = 0;
 };
 
+/// How long a text-to-speech service took to send its first audible sound.
+struct TTFAMetricData {
+    /// The text-to-speech service.
+    std::string processor;
+    /// The AI model used, if any.
+    std::optional<std::string> model;
+    /// Time to first audio, in seconds: `ttfb` plus `leading_silence`.
+    double ttfa = 0;
+    /// Time to first byte, in seconds. The service's ttfb metric already
+    /// reports it, so don't count it twice.
+    double ttfb = 0;
+    /// Silence before the first audible sound, in seconds.
+    double leading_silence = 0;
+};
+
+/// How long an LLM took to send the first token of its answer.
+struct TTFATMetricData {
+    /// The LLM service.
+    std::string processor;
+    /// The AI model used, if any.
+    std::optional<std::string> model;
+    /// Time to first answer token, in seconds: `ttfb` plus `thinking_time`.
+    double ttfat = 0;
+    /// Time to first byte, in seconds. The service's ttfb metric already
+    /// reports it, so don't count it twice.
+    double ttfb = 0;
+    /// Time between the LLM's first output and its first answer token, in
+    /// seconds, usually spent reasoning.
+    double thinking_time = 0;
+};
+
+/// The tokens an LLM call used.
+struct LLMTokenUsage {
+    /// Tokens in the prompt, including results of function calls.
+    int64_t prompt_tokens = 0;
+    /// Tokens in the answer, including reasoning tokens.
+    int64_t completion_tokens = 0;
+    /// All the tokens used.
+    int64_t total_tokens = 0;
+    /// Prompt tokens read from the LLM's cache, if it says.
+    std::optional<int64_t> cache_read_input_tokens;
+    /// Prompt tokens written to the LLM's cache, if it says.
+    std::optional<int64_t> cache_creation_input_tokens;
+    /// Answer tokens used for reasoning, if it says.
+    std::optional<int64_t> reasoning_tokens;
+    /// Prompt tokens that were audio, if it says.
+    std::optional<int64_t> input_audio_tokens;
+    /// Answer tokens that were audio, if it says.
+    std::optional<int64_t> output_audio_tokens;
+    /// Cached prompt tokens that were audio, if it says.
+    std::optional<int64_t> cache_read_input_audio_tokens;
+};
+
+/// How much audio a speech-to-text service received.
+struct STTUsageMetricData {
+    /// The speech-to-text service.
+    std::string processor;
+    /// The AI model used, if any.
+    std::optional<std::string> model;
+    /// Seconds of audio sent to the service since its last report. Add them
+    /// up for the whole session.
+    double audio_seconds = 0;
+};
+
 /// Performance metrics from the bot.
 struct MetricsData {
     /// Times to first byte, in seconds.
     std::vector<MetricData> ttfb;
     /// Processing times, in seconds.
     std::vector<MetricData> processing;
+    /// Times to first audio of text-to-speech services.
+    std::vector<TTFAMetricData> ttfa;
+    /// Times to first answer token of LLMs.
+    std::vector<TTFATMetricData> ttfat;
+    /// Tokens used by LLM calls.
+    std::vector<LLMTokenUsage> tokens;
+    /// Audio received by speech-to-text services.
+    std::vector<STTUsageMetricData> stt_usage;
     /// Characters sent to be spoken.
     std::vector<MetricData> characters;
     /// All the metrics, including those without a field above.
@@ -464,6 +536,10 @@ void from_json(const nlohmann::json& j, TextData& data);
 void from_json(const nlohmann::json& j, SpokenProgressData& data);
 void from_json(const nlohmann::json& j, BotOutputData& data);
 void from_json(const nlohmann::json& j, MetricData& data);
+void from_json(const nlohmann::json& j, TTFAMetricData& data);
+void from_json(const nlohmann::json& j, TTFATMetricData& data);
+void from_json(const nlohmann::json& j, LLMTokenUsage& data);
+void from_json(const nlohmann::json& j, STTUsageMetricData& data);
 void from_json(const nlohmann::json& j, MetricsData& data);
 void from_json(const nlohmann::json& j, LLMFunctionCallStartedData& data);
 void from_json(const nlohmann::json& j, LLMFunctionCallInProgressData& data);

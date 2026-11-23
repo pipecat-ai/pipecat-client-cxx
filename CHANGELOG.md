@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   function that moved it there, their metadata and, for a node of a subflow,
   the node that runs the subflow. Bots on Pipecat 1.17 or newer send it.
 
+- `rtvi::MetricsData` has every kind of metric bots send, not only `ttfb`,
+  `processing` and `characters`: `ttfa`, the time to first audio of
+  text-to-speech services, `ttfat`, the time to first answer token of LLMs,
+  `tokens`, the tokens LLM calls used, and `stt_usage`, the audio
+  speech-to-text services received. Before, they were only in `raw`.
+
 ### Changed
 
 - The client speaks RTVI 2.4, so bots on Pipecat 1.17 or newer send it where
