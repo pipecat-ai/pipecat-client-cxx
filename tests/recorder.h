@@ -202,6 +202,14 @@ class Recorder : public pipecat::PipecatClientCallbacks {
         record("tts-raw-text:" + data.text);
     }
 
+    // Conversation flows
+
+    void on_flow_node_entered(
+            const pipecat::rtvi::FlowNodeEnteredData& data
+    ) override {
+        record("flow-node-entered:" + data.node);
+    }
+
    private:
     void record(const std::string& event) {
         {

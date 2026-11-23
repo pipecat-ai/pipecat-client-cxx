@@ -1077,6 +1077,9 @@ void PipecatClient::Impl::handle_message(const rtvi::Message& message) {
     case MessageType::LLMFunctionCallStopped:
         notify_data(data, &C::on_llm_function_call_stopped);
         break;
+    case MessageType::FlowNodeEntered:
+        notify_data(data, &C::on_flow_node_entered);
+        break;
     case MessageType::ClientReady:
     case MessageType::DisconnectBot:
     case MessageType::ClientMessage:

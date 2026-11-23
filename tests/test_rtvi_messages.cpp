@@ -55,6 +55,7 @@ TEST(MessageType, RoundTripsAllTypes) {
             {MessageType::LLMFunctionCallInProgress,
              "llm-function-call-in-progress"},
             {MessageType::LLMFunctionCallStopped, "llm-function-call-stopped"},
+            {MessageType::FlowNodeEntered, "flow-node-entered"},
     };
 
     for (const auto& [type, name]: TYPES) {
@@ -125,7 +126,7 @@ TEST(Message, ClientReady) {
     EXPECT_EQ(message.type, "client-ready");
     EXPECT_EQ(
             message.data,
-            json::parse(R"({"version": "2.3.0", "about": {"library": "test"}})")
+            json::parse(R"({"version": "2.4.0", "about": {"library": "test"}})")
     );
 
     about.library_version = "1.0.0";
@@ -496,6 +497,33 @@ TEST(ServerData, BotLLMSearchResponse) {
     ASSERT_EQ(data.origins[0].results.size(), 1u);
     EXPECT_EQ(data.origins[0].results[0].text, "Sunny today");
     EXPECT_EQ(data.origins[0].results[0].confidence, std::vector<double> {0.9});
+}
+
+TEST(ServerData, FlowNodeEntered) {
+    auto data = json::parse(R"({
+        "node": "verify.check_birthday",
+        "previous_node": "greet",
+        "function": "wants_to_book",
+        "metadata": {"step": 2},
+        "function_metadata": {"intent": "book"},
+        "parent": "verify"
+    })")
+                        .get<FlowNodeEnteredData>();
+    EXPECT_EQ(data.node, "verify.check_birthday");
+    EXPECT_EQ(data.previous_node, "greet");
+    EXPECT_EQ(data.function, "wants_to_book");
+    EXPECT_EQ(data.metadata, json({{"step", 2}}));
+    EXPECT_EQ(data.function_metadata, json({{"intent", "book"}}));
+    EXPECT_EQ(data.parent, "verify");
+
+    // The flow's first node.
+    data = json::parse(R"({"node": "greet"})").get<FlowNodeEnteredData>();
+    EXPECT_EQ(data.node, "greet");
+    EXPECT_EQ(data.previous_node, std::nullopt);
+    EXPECT_EQ(data.function, std::nullopt);
+    EXPECT_TRUE(data.metadata.is_null());
+    EXPECT_TRUE(data.function_metadata.is_null());
+    EXPECT_EQ(data.parent, std::nullopt);
 }
 
 TEST(ServerData, ServerResponse) {

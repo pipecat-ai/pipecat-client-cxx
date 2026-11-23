@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `PipecatClientCallbacks::on_flow_node_entered()` tells you each time the
+  bot's conversation flow, built with Pipecat Flows, enters a node. Its
+  `rtvi::FlowNodeEnteredData` has the node, the node the flow left, the
+  function that moved it there, their metadata and, for a node of a subflow,
+  the node that runs the subflow. Bots on Pipecat 1.17 or newer send it.
+
+### Changed
+
+- The client speaks RTVI 2.4, so bots on Pipecat 1.17 or newer send it where
+  their conversation flow is, to `on_flow_node_entered()`.
+
 ## [1.3.0] - 2026-11-12
 
 ### Added

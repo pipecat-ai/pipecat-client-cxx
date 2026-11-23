@@ -216,6 +216,19 @@ class PipecatClientCallbacks {
     virtual void on_tts_raw_text(const rtvi::TTSRawTextData& /* data */) {}
 
     /// @}
+
+    /// @name Conversation flows
+    /// @{
+
+    /// The bot's conversation flow, built with Pipecat Flows, entered a node,
+    /// e.g. to show where the user is in the conversation. Comes each time the
+    /// flow enters a node, including its first one and nodes it enters again,
+    /// before the bot responds there. Bots on Pipecat 1.17 or newer send it.
+    virtual void on_flow_node_entered(
+            const rtvi::FlowNodeEnteredData& /* data */
+    ) {}
+
+    /// @}
 };
 
 /// A request to start a bot, e.g. on Pipecat Cloud or your own server. See

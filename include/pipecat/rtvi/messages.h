@@ -29,7 +29,7 @@
 namespace pipecat::rtvi {
 
 /// The RTVI protocol version this library speaks.
-inline constexpr const char* PROTOCOL_VERSION = "2.3.0";
+inline constexpr const char* PROTOCOL_VERSION = "2.4.0";
 
 /// The label of every RTVI message.
 inline constexpr const char* MESSAGE_LABEL = "rtvi-ai";
@@ -72,6 +72,7 @@ enum class MessageType {
     LLMFunctionCallStarted,     ///< The bot's LLM started a function call.
     LLMFunctionCallInProgress,  ///< A function call is running.
     LLMFunctionCallStopped,     ///< A function call finished.
+    FlowNodeEntered,            ///< A conversation flow entered a node.
 };
 
 /// The RTVI name of a message type, e.g. "bot-ready".
@@ -372,6 +373,26 @@ struct BotLLMSearchResponseData {
     std::vector<LLMSearchOrigin> origins;
 };
 
+/// A conversation flow, built with Pipecat Flows, entered a node.
+struct FlowNodeEnteredData {
+    /// Name of the node. A node of a subflow starts with the name of the node
+    /// that runs the subflow, e.g. "verify.check_birthday".
+    std::string node;
+    /// Name of the node the flow left. std::nullopt for the flow's first node.
+    std::optional<std::string> previous_node;
+    /// Name of the function whose call moved the flow here. std::nullopt if
+    /// the bot moved it itself.
+    std::optional<std::string> function;
+    /// The node's metadata, a JSON object defined by your bot. Null if it has
+    /// none.
+    nlohmann::json metadata;
+    /// The metadata of `function`, a JSON object defined by your bot. Null if
+    /// it has none.
+    nlohmann::json function_metadata;
+    /// For a node of a subflow, the node that runs the subflow.
+    std::optional<std::string> parent;
+};
+
 /// An RTVI message.
 ///
 /// PipecatClient creates and sends messages for you. You only need these to
@@ -450,6 +471,7 @@ void from_json(const nlohmann::json& j, LLMFunctionCallStoppedData& data);
 void from_json(const nlohmann::json& j, LLMSearchResult& data);
 void from_json(const nlohmann::json& j, LLMSearchOrigin& data);
 void from_json(const nlohmann::json& j, BotLLMSearchResponseData& data);
+void from_json(const nlohmann::json& j, FlowNodeEnteredData& data);
 
 /// @endcond
 

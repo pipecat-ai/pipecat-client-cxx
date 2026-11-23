@@ -136,6 +136,8 @@ const char* to_string(MessageType type) {
         return "llm-function-call-in-progress";
     case MessageType::LLMFunctionCallStopped:
         return "llm-function-call-stopped";
+    case MessageType::FlowNodeEntered:
+        return "flow-node-entered";
     }
     return "";
 }
@@ -398,6 +400,15 @@ void from_json(const json& j, BotLLMSearchResponseData& data) {
     data.search_result = optional_value<std::string>(j, "search_result");
     data.rendered_content = optional_value<std::string>(j, "rendered_content");
     data.origins = value_or<std::vector<LLMSearchOrigin>>(j, "origins", {});
+}
+
+void from_json(const json& j, FlowNodeEnteredData& data) {
+    data.node = value_or<std::string>(j, "node", "");
+    data.previous_node = optional_value<std::string>(j, "previous_node");
+    data.function = optional_value<std::string>(j, "function");
+    data.metadata = json_value(j, "metadata");
+    data.function_metadata = json_value(j, "function_metadata");
+    data.parent = optional_value<std::string>(j, "parent");
 }
 
 }  // namespace pipecat::rtvi
